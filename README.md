@@ -11,14 +11,14 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 - **[annotated-maps-sp](https://github.com/dcltdw/annotated-maps-sp)** — Greenfield
   TypeScript rebuild of a collaborative map-annotation tool.
 
-### Fun stuff I'm developing/maintaining
+** Fun stuff I'm developing/maintaining **
 
 - **[Understated](https://github.com/dcltdw/Understated)** — Minimal watch face for
   Garmin devices (Connect IQ / Monkey C).
 - **[Flightdeck](https://github.com/dcltdw/Flightdeck)** — Customizable run-data
   field for Garmin watches (Connect IQ / Monkey C).
 
-### Enlightnening, but now back-burnered
+** Enlightnening, but now back-burnered **
 
 - **[gtfs-demo](https://github.com/dcltdw/gtfs-demo)** — GTFS-RT spike against the
   MBTA Red and Green lines: realtime arrivals, feed-health monitoring, auth, and a
