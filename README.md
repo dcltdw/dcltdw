@@ -1,6 +1,8 @@
 # David Leung
 
-Senior software engineer based in Somerville, MA. Fifteen years of backend work
+Currently open to senior backend roles, remote or hybrid, in the Greater Boston area.
+
+Senior software engineer based in Somerville, MA. Recent work has been backend work
 across healthcare IT, airline operations, and international public health data pipelines.
 Primary languages are Python and Java; comfortable in TypeScript and SQL.
 
