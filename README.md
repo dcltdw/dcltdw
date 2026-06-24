@@ -1,6 +1,6 @@
 # David Leung
 
-Currently open to senior backend roles, remote or hybrid, in the Greater Boston area.
+Currently open to senior backend roles, remote or hybrid, in the Greater Boston area.  *(Current as of June 2026)*
 
 Senior software engineer based in Somerville, MA. Recent work has been backend work
 across healthcare IT, airline operations, and international public health data pipelines.
