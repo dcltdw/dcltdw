@@ -18,6 +18,6 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 
 ## Links
 
-- 📄 [LinkedIn](https://www.linkedin.com/in/YOUR-SLUG-HERE)
+- 📄 [LinkedIn](https://www.linkedin.com/in/david-leung-5300b51/)
 - 🎓 MIT S.B., Computer Science
 - 📍 Open to remote or hybrid roles; Greater Boston area
