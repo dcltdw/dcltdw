@@ -1,16 +1,23 @@
-## Hi there 👋
+# David Leung
 
-<!--
-**dcltdw/dcltdw** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Senior software engineer based in Somerville, MA. Fifteen years of backend work
+across healthcare IT, airline operations, and international public health data pipelines.
+Primary languages are Python and Java; comfortable in TypeScript and SQL.
 
-Here are some ideas to get you started:
+## What I'm working on
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+- **[annotated-maps-sp](https://github.com/dcltdw/annotated-maps-sp)** — Greenfield
+  TypeScript rebuild of a collaborative map-annotation tool.
+- **[gtfs-demo](https://github.com/dcltdw/gtfs-demo)** — GTFS-RT spike against the
+  MBTA Red and Green lines: realtime arrivals, feed-health monitoring, auth, and a
+  Streamlit UI. Python, uv, mypy --strict, ruff, GitHub Actions CI.
+- **[Understated](https://github.com/dcltdw/Understated)** — Minimal watch face for
+  Garmin devices (Connect IQ / Monkey C).
+- **[Flightdeck](https://github.com/dcltdw/Flightdeck)** — Customizable run-data
+  field for Garmin watches (Connect IQ / Monkey C).
+
+## Links
+
+- 📄 [LinkedIn](https://www.linkedin.com/in/YOUR-SLUG-HERE)
+- 🎓 MIT S.B., Computer Science
+- 📍 Open to remote or hybrid roles; Greater Boston area
