@@ -29,6 +29,8 @@ Include these sections:
 - **Work breakdown** — what changed and why.
 - **Test expectations** — only when failures are expected.
 - **Operational impact** — deploy / reinstall / migration notes (omit if none).
+- **Provenance** — `Agent:` (tool / harness) and `Model / version:` that
+  produced the PR.
 
 ## Project board
 - Track work on the project board; move status **Todo → In Progress** (PR opens)
