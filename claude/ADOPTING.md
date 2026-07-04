@@ -15,6 +15,13 @@ contains:
 
 This is machine-global, so it's done once — not per repo.
 
+> **Board IDs are project-specific.** `universal.md` says to track work on the
+> project board (Todo → In Progress → Done) but cannot hold IDs. If this repo
+> uses a board, record its IDs in the repo's own `CLAUDE.md` — board URL/id, the
+> Status field id, the Todo / In Progress / Done option ids, and the
+> `gh api graphql` query to re-derive them if they drift. (See Understated's
+> CLAUDE.md "Project board" section for the shape.)
+
 ## 2. Garmin release process (Garmin repos only)
 In the repo's own `CLAUDE.md`, add:
 

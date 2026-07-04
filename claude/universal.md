@@ -5,6 +5,17 @@ Imported into a repo via `@~/Github/dcltdw/claude/universal.md`. Domain- and
 project-specific rules live alongside the import in each repo's CLAUDE.md and
 supplement (or override) these.
 
+## Clarify before proceeding
+Before acting on any request — *including* an explicit "please proceed with X" —
+if you have a genuine clarifying question about X, or a substantive
+countersuggestion or concern, raise it and **wait** for a response before
+proceeding. Do not perform agreement, and do not suppress a concern to seem
+agreeable.
+
+The flip side: do not manufacture questions when something is genuinely clear.
+Proceeding without asking signals you genuinely had none — not that you skipped
+the check.
+
 ## Branches and PRs
 - Never commit directly to `main`. Always work on a branch.
 - Open a PR and **wait for approval** before merging — don't merge your own work
