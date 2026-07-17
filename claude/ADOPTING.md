@@ -1,45 +1,59 @@
-# Adopting the shared Claude docs in a repo
+# Adopting dcltdw's shared Claude rules
 
-Instructions for a Claude agent working in one of dcltdw's repos, to wire that
-repo to the canonical shared docs here in `dcltdw/claude/`. Follow these steps.
+The canonical shared rules live in this directory: **[`AGENTS.md`](AGENTS.md)**
+— cross-project collaboration rules, in the vendor-neutral
+[AGENTS.md](https://agents.md/) format — and
+[`garmin-release.md`](garmin-release.md) (the Garmin release process).
 
-## Prerequisite
-`dcltdw` must be cloned at `~/Github/dcltdw` on the machine — the `@import`
-paths below are absolute to that location.
+## Install (once per machine)
 
-## 1. Universal rules (every repo, once per machine)
-Ensure `~/.claude/CLAUDE.md` (the global user memory, applied to all projects)
-contains:
+From a clone of this repo:
 
-    @~/Github/dcltdw/claude/universal.md
+    ./install.sh
 
-This is machine-global, so it's done once — not per repo.
+The script is idempotent and does two things:
 
-> **Board IDs are project-specific.** `universal.md` says to track work on the
-> project board (Todo → In Progress → Done) but cannot hold IDs. If this repo
-> uses a board, record its IDs in the repo's own `CLAUDE.md` — board URL/id, the
-> Status field id, the Todo / In Progress / Done option ids, and the
-> `gh api graphql` query to re-derive them if they drift. (See Understated's
-> CLAUDE.md "Project board" section for the shape.)
+- symlinks this `claude/` directory to the stable path `~/.claude/dcltdw`, so
+  imports don't depend on *where* you cloned the repo;
+- ensures your machine-global `~/.claude/CLAUDE.md` imports the universal rules:
 
-## 2. Garmin release process (Garmin repos only)
-In the repo's own `CLAUDE.md`, add:
+      @~/.claude/dcltdw/AGENTS.md
 
-    @~/Github/dcltdw/claude/garmin-release.md
+  (migrating the old `@~/Github/dcltdw/claude/universal.md` import if it finds it).
 
-Then add a short **project supplement** below the import with this repo's
-specifics — signing-key path (+ how it's verified), target device list / primary
-test device, where the store copy lives, and any release quirks. See the
-"Project supplement" section of `garmin-release.md` for the fields.
+After a `git pull` the symlink already points at the updated files — no
+re-install needed. Re-run `./install.sh` only if you move the clone.
 
-If the repo previously pointed at another "master" conventions doc (e.g. an
-abandoned project's), **remove that pointer** — these `@import`s are the single
-source of truth now.
+> `universal.md` remains as a back-compat symlink to `AGENTS.md`, so any repo
+> still importing the old path keeps working. New setups import `AGENTS.md`.
 
-## 3. Deliver the change
-Per `universal.md`: make the CLAUDE.md edit on a branch and open a PR for
-approval. (`~/.claude/CLAUDE.md` is user config, not a repo — edit it directly.)
+## Per-repo wiring
 
-## Note on resolution
-`@import`s resolve against the local filesystem, so they only take effect once
-the referenced files exist on `dcltdw`'s `main` and it has been pulled locally.
+**Board IDs are project-specific.** The universal rules say to track work on a
+project board (Todo → In Progress → Done → Won't Do) but can't hold IDs. If a
+repo uses a board, record its IDs in that repo's own `CLAUDE.md` — board URL/id,
+the Status field id, the option ids, and the `gh api graphql` query to re-derive
+them if they drift.
+
+**Garmin repos.** Add to the repo's own `CLAUDE.md`:
+
+    @~/.claude/dcltdw/garmin-release.md
+
+Then add a short project supplement below the import with this repo's specifics
+(signing-key path + how it's verified, target device list / primary test device,
+where the store copy lives, release quirks). See the "Project supplement"
+section of `garmin-release.md`.
+
+If the repo previously pointed at another "master" conventions doc, remove that
+pointer — these `@import`s are the single source of truth now.
+
+## Delivering a repo's CLAUDE.md change
+
+Per the universal rules: branch and open a PR for approval. (`~/.claude/CLAUDE.md`
+is user config, not a repo — `install.sh` edits it directly.)
+
+## How resolution works
+
+`@import`s resolve against the local filesystem, so a new import takes effect
+once the referenced file exists at the resolved path — which, after
+`install.sh`, is the stable `~/.claude/dcltdw/` symlink.
