@@ -16,6 +16,14 @@ When asked to remember something, decide its scope *before* saving it:
 Defaulting a universal rule into one project's memory is how the same lesson gets
 re-learned from scratch in every other repo.
 
+## Handing off to another model
+When the immediate next step you recommend is switching models — "switch to X and
+do Y" as the action to take *now*, not a switch mentioned as a later step — hand
+over a **ready-to-paste, self-contained prompt** for the new model. Write it to
+stand on its own in a fresh session: include the context, goal, constraints, and
+any file or ticket paths it needs, rather than assuming it inherits the current
+conversation.
+
 ## Clarify before proceeding
 Before acting on any request — *including* an explicit "please proceed with X" —
 if you have a genuine clarifying question about X, or a substantive
