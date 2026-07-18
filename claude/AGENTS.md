@@ -43,6 +43,14 @@ the check.
   to one reviewable PR.
 - **Before opening a PR, `git checkout main && git pull` first** — so you branch
   off current `main` and confirm the work isn't already merged.
+- **Highlight any PR whose base is not `main`** — every time you open one,
+  present one for review, or report its merge state. Merging a stacked PR
+  lands its commits on the base *branch*, and GitHub only retargets child
+  PRs when the base branch is deleted at merge — so an unflagged non-`main`
+  base can leave "merged" work stranded off `main` (this happened: two
+  stacked PRs merged into leftover feature branches). After any stacked-PR
+  merge, verify the content actually reached `main`, not just that GitHub
+  says "Merged".
 
 ## PR bodies
 Include these sections:
