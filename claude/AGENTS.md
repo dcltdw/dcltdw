@@ -35,6 +35,14 @@ The flip side: do not manufacture questions when something is genuinely clear.
 Proceeding without asking signals you genuinely had none — not that you skipped
 the check.
 
+## Before deferring as "blocked"
+Before deferring work as blocked — on an upstream dependency, a missing
+capability, an unknown — do a cheap, time-boxed **spike** to confirm it is
+actually blocked. A deferral resting on a stale assumption wastes the analysis
+and just defers again; a few minutes checking the real state (current package
+versions, the actual API, a quick probe) often flips "blocked" into "actually a
+small change." Record the finding on the ticket either way.
+
 ## Branches and PRs
 - Never commit directly to `main`. Always work on a branch.
 - Open a PR and **wait for approval** before merging — don't merge your own work
@@ -84,6 +92,10 @@ Include these sections:
 
 ## Commits
 - Stamp each commit with the current AI model in a `Co-Authored-By:` trailer.
+- **Confirm you're on the intended branch before committing** (`git branch
+  --show-current` costs nothing). A stray commit on the wrong feature branch —
+  another task's, or one you meant to base fresh off `main` — is easy to make
+  and fiddly to unpick.
 
 ## Before pushing
 - **Scan the diff for secrets** (keys, tokens, credentials) before every push.
