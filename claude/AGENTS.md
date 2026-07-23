@@ -1,14 +1,14 @@
 # Universal collaboration rules
 
 Canonical cross-project rules for working with Claude on any of dcltdw's repos.
-Imported into a repo via `@~/Github/dcltdw/claude/universal.md`. Domain- and
+Imported into a repo via `@~/.claude/dcltdw/AGENTS.md`. Domain- and
 project-specific rules live alongside the import in each repo's CLAUDE.md and
 supplement (or override) these.
 
 ## Where a remembered rule belongs
 When asked to remember something, decide its scope *before* saving it:
 - A **cross-project** rule (applies to any of dcltdw's repos) belongs here in
-  `universal.md`. When a "remember this" request looks cross-project, say so and
+  `AGENTS.md`. When a "remember this" request looks cross-project, say so and
   **ask whether it should go here** rather than into project-local memory.
 - A **repo-specific** rule belongs in that repo's `CLAUDE.md`.
 - Only **project state or personal context** belongs in private per-project memory.
