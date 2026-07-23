@@ -59,6 +59,10 @@ small change." Record the finding on the ticket either way.
   stacked PRs merged into leftover feature branches). After any stacked-PR
   merge, verify the content actually reached `main`, not just that GitHub
   says "Merged".
+- **Never merge a stacked PR until its base has actually become `main`.** If the
+  parent merged without its branch being deleted, retarget the child to `main`
+  (and rebase) *before* merging it — otherwise the child merges into the stale
+  base branch, not `main`, and strands even though GitHub says "Merged".
 
 ## PR bodies
 Include these sections:
