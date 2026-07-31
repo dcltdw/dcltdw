@@ -41,6 +41,17 @@ Say nothing and carry on when the session is already on the model you would
 name. The rule exists to stop a phase running on the wrong model, not to
 announce agreement with the current one.
 
+**Hold that exemption to a high bar, because you are a poor judge of which
+model is running.** A `/model` directive anywhere in this session's transcript
+is authoritative; your system prompt's claim about which model you are is not,
+and loses to it. If the two disagree — or you simply cannot tell — you are
+**not** "already on the model you would name": pause and hand over. The
+asymmetry is the argument. Announcing a switch that turns out to be unnecessary
+costs one sentence; staying silent on the wrong model costs the rule its whole
+purpose (this happened: a session set to Opus by `/model` read its system
+prompt as Fable, took the exemption, and ran a brainstorm on Opus — the exact
+outcome the rule exists to prevent).
+
 ## Handing off to another model
 When the immediate next step you recommend is switching models — "switch to X and
 do Y" as the action to take *now*, not a switch mentioned as a later step — hand
