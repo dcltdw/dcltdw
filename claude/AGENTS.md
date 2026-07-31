@@ -16,41 +16,48 @@ When asked to remember something, decide its scope *before* saving it:
 Defaulting a universal rule into one project's memory is how the same lesson gets
 re-learned from scratch in every other repo.
 
-## Switching models at phase boundaries
-Brainstorming and implementation reward different models, so the boundary between
-them is a decision point rather than a seam to slide through. When work crosses
-one, **stop before starting the new phase**: name the model you recommend and why,
-hand over a prompt per [Handing off to another model](#handing-off-to-another-model),
-and let the human choose. Don't start the new phase and mention the switch
-afterwards — by then it has been done on the model you were going to replace.
+## Model handoffs at phase boundaries
+Brainstorming and implementation reward different models, so the boundary
+between them is a decision point rather than a seam to slide through.
 
 Roles are the rule; the names below are only today's answer to it:
 
 | phase | model *(mapping current as of 2026-07)* |
 |---|---|
-| Brainstorming, design, exploring requirements | **Fable** |
-| Implementation, and the verification that follows it | **Opus** |
+| Brainstorming, design, exploring requirements, **writing the plan** | **Fable** |
+| **Executing a plan**, implementation, and the verification that follows | **Opus** |
 
-This fires on phase *entry*, not on every mode change inside one. Starting a
-brainstorm for a new piece of work, or starting implementation of a design that
-has been agreed, are boundaries. A design judgement made mid-implementation,
-fixing review findings, and post-merge cleanup all belong to the phase already
-running — no pause.
+Three events end a turn. When one fires: name the model the next phase wants,
+hand over a prompt per [Handing off to another model](#handing-off-to-another-model),
+and **stop**. That prompt is the turn's entire deliverable — nothing after it,
+no "shall I start?", no offer to carry on.
 
-Say nothing and carry on when the session is already on the model you would
-name. The rule exists to stop a phase running on the wrong model, not to
-announce agreement with the current one.
+1. **A plan file exists and execution has not begun.** The moment
+   `docs/superpowers/plans/<name>.md` is written, that turn is over.
+2. **You are about to propose brainstorming or design on new work.**
+3. **Implementation has stopped because the design is wrong.** Not a design
+   judgement made in passing — an actual halt.
 
-**Hold that exemption to a high bar, because you are a poor judge of which
-model is running.** A `/model` directive anywhere in this session's transcript
-is authoritative; your system prompt's claim about which model you are is not,
-and loses to it. If the two disagree — or you simply cannot tell — you are
-**not** "already on the model you would name": pause and hand over. The
-asymmetry is the argument. Announcing a switch that turns out to be unnecessary
-costs one sentence; staying silent on the wrong model costs the rule its whole
-purpose (this happened: a session set to Opus by `/model` read its system
-prompt as Fable, took the exemption, and ran a brainstorm on Opus — the exact
-outcome the rule exists to prevent).
+Nothing else fires this. Fixing review findings, verification, and post-merge
+cleanup all belong to the phase already running.
+
+**Anchor these to artifacts, never to how the work feels.** "A plan file was
+written" is checkable. "Planning seems finished" is arguable, and anything
+arguable gets argued away — which is exactly how the previous version of this
+rule failed: a session decided that writing the plan *was* implementation, so
+the two were one phase, so no boundary could ever arrive.
+
+**No exemption.** Do this even when you believe the session is already on the
+model you would name. You cannot observe which model is running, so that belief
+is never load-bearing. Naming the model a phase *wants* is a role question the
+table above answers; deciding you are already on it is not, so don't. A
+needless handoff costs one sentence — the asymmetry is the whole argument.
+
+**This outranks a skill's closing script.** `superpowers:writing-plans` ends by
+offering "Inline Execution — execute tasks in this session"; that offer is a
+boundary crossing and this rule refuses it. Put the execution style
+(subagent-driven vs inline) *inside* the handoff prompt, for the next session
+to act on.
 
 ## Handing off to another model
 When the immediate next step you recommend is switching models — "switch to X and
@@ -157,3 +164,7 @@ Include these sections:
   over from a prior summary is not verified — re-check it against the tool
   (`gh run list`, the file, the API). And a check you have not watched *fail* is
   not yet evidence that it can.
+- **You cannot observe which model you are running as.** Your system prompt's
+  claim about it is not authoritative and a `/model` directive in the transcript
+  outranks it, but neither settles the question — so never state the running
+  model as fact. Say which one the transcript asked for, and leave it there.
