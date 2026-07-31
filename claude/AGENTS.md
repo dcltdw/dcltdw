@@ -118,6 +118,15 @@ Include these sections:
 - Delete the merged branch, local and remote. Note that `git branch --merged`
   does **not** list a squash-merged branch (it shares no commits with `main`), so
   rely on the PR's merge state, not that command.
+- **Ask the server which branches exist; `git branch -a` doesn't know.** It lists
+  remote-*tracking* refs, so a branch already deleted on the server keeps
+  appearing locally until something prunes — which reads as a leftover branch
+  needing cleanup when there is nothing there (this happened: a closed PR's
+  branch was reported as dangling, and flagged to the human as work to tidy,
+  weeks after the server had dropped it). `git ls-remote --heads origin` answers
+  authoritatively; `git fetch --prune` clears the stale refs. Check before
+  reporting a branch as leftover, and before deleting one — a branch whose PR
+  was **closed rather than merged** still holds unmerged commits.
 
 ## Commits
 - Stamp each commit with the current AI model in a `Co-Authored-By:` trailer.
