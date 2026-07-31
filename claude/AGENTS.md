@@ -16,6 +16,31 @@ When asked to remember something, decide its scope *before* saving it:
 Defaulting a universal rule into one project's memory is how the same lesson gets
 re-learned from scratch in every other repo.
 
+## Switching models at phase boundaries
+Brainstorming and implementation reward different models, so the boundary between
+them is a decision point rather than a seam to slide through. When work crosses
+one, **stop before starting the new phase**: name the model you recommend and why,
+hand over a prompt per [Handing off to another model](#handing-off-to-another-model),
+and let the human choose. Don't start the new phase and mention the switch
+afterwards — by then it has been done on the model you were going to replace.
+
+Roles are the rule; the names below are only today's answer to it:
+
+| phase | model *(mapping current as of 2026-07)* |
+|---|---|
+| Brainstorming, design, exploring requirements | **Fable** |
+| Implementation, and the verification that follows it | **Opus** |
+
+This fires on phase *entry*, not on every mode change inside one. Starting a
+brainstorm for a new piece of work, or starting implementation of a design that
+has been agreed, are boundaries. A design judgement made mid-implementation,
+fixing review findings, and post-merge cleanup all belong to the phase already
+running — no pause.
+
+Say nothing and carry on when the session is already on the model you would
+name. The rule exists to stop a phase running on the wrong model, not to
+announce agreement with the current one.
+
 ## Handing off to another model
 When the immediate next step you recommend is switching models — "switch to X and
 do Y" as the action to take *now*, not a switch mentioned as a later step — hand
