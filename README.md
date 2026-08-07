@@ -12,12 +12,19 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 
 **Fun stuff I'm developing/maintaining**
 
+- **[bunnyforge](https://github.com/dcltdw/bunnyforge)** — a command-line tool
+  ([on PyPI](https://pypi.org/project/bunnyforge/)) that manages a tabletop-RPG
+  campaign as a version-controlled Markdown workspace: structural validation, a
+  per-file visibility model enforced at export so private material can't reach
+  the published site, and one-way publishing to a DokuWiki. Designed to be
+  co-maintained by an AI agent working under a generated contract file.
+  Python ≥ 3.11, zero runtime dependencies.
 - **[Understated](https://github.com/dcltdw/Understated)** — Minimal watch face for
   Garmin devices (Connect IQ / Monkey C).
 - **[Flightdeck](https://github.com/dcltdw/Flightdeck)** — Customizable run-data
   field for Garmin watches (Connect IQ / Monkey C).
 
-**Enlightnening, but now back-burnered**
+**Enlightening, but now back-burnered**
 
 - **[gtfs-demo](https://github.com/dcltdw/gtfs-demo)** — GTFS-RT spike against the
   MBTA Red and Green lines: realtime arrivals, feed-health monitoring, auth, and a
