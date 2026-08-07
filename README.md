@@ -16,8 +16,9 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
   ([on PyPI](https://pypi.org/project/bunnyforge/)) that manages a tabletop-RPG
   campaign as a version-controlled Markdown workspace: structural validation, a
   per-file visibility model enforced at export so private material can't reach
-  the published site, and one-way publishing to a DokuWiki. Python ≥ 3.11, zero
-  runtime dependencies.
+  the published site, and one-way publishing to a DokuWiki. Designed to be
+  co-maintained by an AI agent working under a generated contract file.
+  Python ≥ 3.11, zero runtime dependencies.
 - **[Understated](https://github.com/dcltdw/Understated)** — Minimal watch face for
   Garmin devices (Connect IQ / Monkey C).
 - **[Flightdeck](https://github.com/dcltdw/Flightdeck)** — Customizable run-data
