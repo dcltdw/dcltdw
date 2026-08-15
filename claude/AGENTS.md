@@ -164,6 +164,11 @@ Include these sections:
   over from a prior summary is not verified — re-check it against the tool
   (`gh run list`, the file, the API). And a check you have not watched *fail* is
   not yet evidence that it can.
+- **Verify where the artifact will live, not where you happen to be working.**
+  A command that passes in your working tree can prove the wrong thing —
+  uncommitted edits, local config, and warm caches all mask failures the next
+  person hits. For anything that ships (a branch, a release, a generated file),
+  re-run the check in a clean checkout; a throwaway `git worktree` is enough.
 - **You cannot observe which model you are running as.** Your system prompt's
   claim about it is not authoritative and a `/model` directive in the transcript
   outranks it, but neither settles the question — so never state the running
