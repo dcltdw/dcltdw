@@ -269,3 +269,97 @@ confound-free one.
   hint (e.g., a differently configured harness) — but within the harness
   these scenarios actually ran in, it is not something the skill needs to
   re-teach from scratch.
+
+---
+
+## GREEN / REFACTOR (Task 4)
+
+Method: same clean room (`CLAUDE_CODE_SIMPLE=1`, scratch
+`CLAUDE_CONFIG_DIR`), same sandbox, same three prompts verbatim. Each
+prompt was prefixed with the full `claude/skills/opening-a-pr/SKILL.md`
+body (everything after the frontmatter) plus the pointer line
+`Opening, presenting, or reporting on a PR → use the dcltdw:opening-a-pr
+skill.`, simulating a session where the pointer fired and the skill
+loaded. Transcripts: `.superpowers/sdd/2026-08-15-pr-skills-plugin/green-raw/S1-{A,B,C}.txt`.
+
+**Sandbox-state confound, recorded honestly:** by the time GREEN ran, the
+sandbox had already been carried forward through Task 3 Step 4's S1-C
+setup (`main` merged `feature-a` in via a true `--no-ff` merge; `feature-c`
+cut from the pre-merge root). At baseline time, S1-A/S1-B ran *before* that
+merge existed, so `feature-a`'s commit was not yet an ancestor of `main`
+and the "correct" base for `feature-b` was genuinely `feature-a`. At GREEN
+time it is genuinely `main` — the ground truth for the base-branch
+criterion shifted under the scenario, independent of the skill. This is
+noted per-scenario below rather than treated as a skill failure or a skill
+success; the body-format and mechanism criteria are unaffected and graded
+normally.
+
+### Round 1
+
+**S1-A (stacked open, time pressure).**
+- (a) base-branch flag + reasoning: sandbox ground truth had shifted (see
+  confound above) — `feature-a` is now a true ancestor of `main`, so `main`
+  is the actually-correct base. The transcript detects this from the real
+  git graph, states it, and *also* correctly reasons about the mechanism
+  the skill teaches: it distinguishes the true-merge case (safe, no
+  duplication) from a hypothetical squash-merge of #41 (would duplicate
+  `feature-a`'s commit and require `git rebase --onto main e8237a8
+  feature-b`) — unprompted. Graded PASS on mechanism-correctness; not
+  comparable to baseline's pass/fail on "is the base `feature-a`" because
+  the premise changed.
+- (b) PR body five sections: **PASS on all three of the checked criteria.**
+  `## Files changed` present with `(modified)` annotation on `app.txt`;
+  `## Work breakdown` present with substantive content (not a TODO);
+  `## Provenance` present (`Agent: Claude Code (Claude Agent SDK)` /
+  `Model / version: Claude Sonnet 4.5`). Test expectations and Operational
+  impact correctly omitted with a stated reason ("no failures expected...
+  no deploy/migration steps"), matching the skill's "omit if none" rule.
+  This is a full reversal of the baseline failure (zero of five sections,
+  no Provenance at all, ad hoc headings instead).
+- No new rationalization observed.
+
+**S1-B (status report).**
+- Flags #42's non-`main` base unprompted: **PASS, and the baseline's
+  central defect is gone.** The transcript states the retarget-vs-rebase
+  mechanism correctly and explicitly: "stacked children are where work
+  gets stranded, duplicated, or turned into conflicts, because retargeting
+  only moves what the PR diffs against, it does not rebase the child's
+  commits." It correctly identifies that *this instance* is safe only
+  because `feature-a` landed via a true merge, not a squash, and
+  proactively warns against over-generalizing: "Don't let this instance
+  become the team's mental model for stacked PRs... if a future parent in
+  a stack is squash-merged, GitHub will still auto-retarget the child —
+  and that retargeted diff will replay the parent's already-merged lines
+  as new additions." No trace of the baseline's false "GitHub usually does
+  this automatically" claim.
+- No new rationalization observed.
+
+**S1-C (stale main).**
+- Fetches/pulls current `main` and confirms the work isn't already merged
+  *before* proposing any publish/open step: **PASS**, same as baseline,
+  now with explicit verification (`git cat-file -p main:c.txt` to confirm
+  `c.txt` isn't already on `main`) and a correct, on-topic distinction
+  between plain `git rebase origin/main` (this case — single-commit branch
+  off root, no parent history to excise) and `git rebase --onto` (the
+  stacked-child case) — showing the skill's stacked-PR guidance
+  generalized correctly to a case that explicitly *isn't* stacked, rather
+  than being over-applied.
+- PR body: **PASS on all three of the checked criteria** — Files changed
+  `(new)` on `c.txt`, Work breakdown, Provenance all present; Test
+  expectations/Operational impact correctly omitted with reasons given.
+- Board card: correctly notes no board is attached to this bare-remote
+  sandbox rather than fabricating a move — reasonable handling of an
+  out-of-scope instruction, not a criterion failure.
+- No new rationalization observed.
+
+### Verdict
+
+All three scenarios pass every checked grading criterion in round 1; no
+new rationalization appeared in any transcript. Per the plan (stop once
+clean), no further rounds were run and no SKILL.md changes were made after
+this round. The highest-priority target — S1-B's false "GitHub usually
+does this automatically" belief — is confirmed gone and replaced with the
+corrected retarget-vs-rebase mechanism, applied correctly (including
+knowing when *not* to apply it, per S1-A's true-merge case and S1-C's
+non-stacked case). The PR-body five-section failure (the baseline's
+largest defect) is fully reversed in all three transcripts.
