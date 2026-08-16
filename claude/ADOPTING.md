@@ -11,7 +11,7 @@ From a clone of this repo:
 
     ./install.sh
 
-The script is idempotent and does two things:
+The script is idempotent and does three things:
 
 - symlinks this `claude/` directory to the stable path `~/.claude/dcltdw`, so
   imports don't depend on *where* you cloned the repo;
@@ -21,8 +21,14 @@ The script is idempotent and does two things:
 
   (migrating the old `@~/Github/dcltdw/claude/universal.md` import if it finds it).
 
-After a `git pull` the symlink already points at the updated files — no
-re-install needed. Re-run `./install.sh` only if you move the clone.
+The script also registers this clone as the `dcltdw` plugin marketplace and
+installs the `dcltdw` skills plugin (`dcltdw:opening-a-pr`,
+`dcltdw:cleaning-up-after-pr-merge`).
+
+After a `git pull`, the symlinked rule files (`AGENTS.md`, `garmin-release.md`)
+are already current — but the **skills plugin is a cached copy** and is not.
+Re-run `./install.sh` after pulling (it runs `claude plugin marketplace update`);
+or enable auto-update for the `dcltdw` marketplace in `/plugin` → Marketplaces.
 
 > `universal.md` remains as a back-compat symlink to `AGENTS.md`, so any repo
 > still importing the old path keeps working. New setups import `AGENTS.md`.

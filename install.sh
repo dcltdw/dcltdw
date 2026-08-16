@@ -35,6 +35,20 @@ else
   echo "added import to $GLOBAL_MD"
 fi
 
+# 3) Register the skills-plugin marketplace and install/update the plugin.
+if command -v claude >/dev/null 2>&1; then
+  if claude plugin marketplace list 2>/dev/null | grep -qi 'dcltdw'; then
+    claude plugin marketplace update dcltdw
+  else
+    claude plugin marketplace add "$REPO_DIR"
+  fi
+  claude plugin install dcltdw@dcltdw || true   # already-installed is fine
+  echo "skills plugin dcltdw installed/updated"
+else
+  echo "WARNING: 'claude' CLI not found — skills plugin NOT installed."
+  echo "         Install Claude Code, then re-run ./install.sh"
+fi
+
 echo
 echo "Done. Start a new Claude session (or /clear) to pick up the rules."
 echo "Garmin repos: add '@~/.claude/dcltdw/garmin-release.md' to that repo's CLAUDE.md (see claude/ADOPTING.md)."
