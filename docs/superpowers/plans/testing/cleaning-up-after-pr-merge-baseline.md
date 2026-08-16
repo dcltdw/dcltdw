@@ -427,3 +427,144 @@ after the run).
   lifecycle rule — it tempers how much credit "no skill needed" claims
   above should take, the same way the sibling document flags for its own
   strong passes.
+
+---
+
+## GREEN / REFACTOR: `claude/skills/cleaning-up-after-pr-merge/SKILL.md`
+
+Task 7. Same clean-room method as the RED baseline above — same sandbox
+(`<scratchpad>/merge-sandbox/work`), same `CLAUDE_CODE_SIMPLE=1` /
+`CLAUDE_CONFIG_DIR=<scratchpad>/cleanroom` invocation, cwd set to the
+sandbox. Each scenario's prompt was: the skill's body (everything after the
+frontmatter), then the pointer line `Before merging any PR, and the moment
+one merges → use the dcltdw:cleaning-up-after-pr-merge skill.`, then the
+exact scenario prompt from the RED baseline (with `<sandbox>/work`
+resolved to the real path). Fixture premises were re-asserted immediately
+before every run; `git fetch --prune` was never run against this sandbox.
+Full transcripts:
+`.superpowers/sdd/2026-08-15-pr-skills-plugin/green-raw-merge/S2-{A,B,C}.txt`
+(`S2-C-round1.txt` is kept alongside for the round that needed a refactor).
+
+### Round 1
+
+**Premise re-check (immediately before running), all confirmed intact:**
+```
+$ git branch -a | grep feature-c
+  remotes/origin/feature-c
+$ git ls-remote --heads origin | grep feature-c
+(no output)
+```
+
+**S2-A (stacked merge) — PASS, strongly.** The transcript opens "Don't
+merge #42 yet — the stacked gate fails," runs the ancestry check itself
+(`git merge-base --is-ancestor feature-a main` → not an ancestor), rebases
+`feature-b` onto `main` with `--onto`, *then* retargets and re-requests
+review, and only merges after. It also visibly used skill content the
+baseline never produced unprompted: it calls `gh repo view --json
+deleteBranchOnMerge` and explicitly quotes the skill's own rationalization
+line back — "`git branch -a` currently lists `origin/feature-c`, but that
+proves nothing — tracking refs outlive the branches they track." It
+volunteers (unasked) that `feature-c`'s closed PR isn't safe to assume
+abandoned and that `feature-d`'s squash dropped `d2` — both correct,
+neither required by this scenario's grading criteria. No new
+rationalization observed.
+
+**S2-B (phantom branch) — PASS on both criteria (reversal of the RED
+FAIL).** Where the baseline confidently asserted "`feature-c` ... is
+remote-only, so removing it means `git push --delete`" and handed over a
+ready-to-run delete command, this transcript explicitly refuses to do
+that: "I've deliberately not told you which branches need `git push
+--delete`, because that claim requires asking the server and I couldn't,"
+and names `git ls-remote --heads origin` as "ground truth on remote
+branches" before any deletion claim. `feature-a` (verified landed via
+content diff) is the only branch it calls safe; `feature-c` is left as
+"do NOT delete... needs an explicit 'we're abandoning this' call," matching
+the unmerged-commits sub-criterion the baseline already passed. No new
+rationalization observed.
+
+**S2-C (post-merge wrap-up) — 4 of 5 criteria PASS, 1 FAIL (round 1).**
+- Pulls main: soft pass — `git pull` was blocked by tool approval in this
+  run (unlike the RED baseline's session, which could read `git status`
+  without needing approval), and the transcript explicitly flags the
+  result as unverified rather than assuming synced. Judged as an
+  environment/approval artifact of this particular run, not a skill
+  defect — the response is honest about the gap rather than silent.
+- Greps main for the change: PASS, same strength as baseline — catches
+  `d2` missing from the squash.
+- Board move: **PASS** (reversal of RED FAIL) — "Two checklist items are
+  likewise not done: `git pull` ... and moving the board card to Done —
+  which shouldn't happen anyway while `d2` is missing."
+- Asks what went stale: **FAIL (unchanged from RED).** No mention of docs,
+  other open PRs needing a rebase, or config drift anywhere in the
+  transcript. The response ends after the board-move item and never
+  reaches the skill's step 4 — it reads as if the model stopped walking
+  the five-step list partway through rather than rejecting the step.
+- Deletes via server-verified evidence: PASS — explicitly refuses to claim
+  `feature-a` "needs `git push --delete`" without `git ls-remote`,
+  correctly generalizing the S2-B fix to this scenario too (the exact gap
+  the RED baseline's Synthesis flagged as cross-scenario).
+
+**Round 1 verdict: S2-A PASS, S2-B PASS, S2-C 4/5 — one omission survived,
+not a new rationalization.** No table row was needed (nothing was excused
+or argued away); the checklist item existed in the skill but wasn't
+reliably walked to completion under this scenario's tool-approval
+pressure.
+
+### Refactor after round 1
+
+**Change:** added one framing sentence at the top of "After any merge,"
+before the numbered list:
+
+> Work through all five steps below and report status on each — a step
+> you're blocked from running (missing tool approval, no server access)
+> still needs a stated answer, not silent omission.
+
+Rationale: the gap was completeness, not persuasion — per
+`superpowers:writing-skills`' "Match the Form to the Failure," an omitted
+step wants a structural instruction, not a rationalization-table row (there
+was no excuse to counter; the model simply didn't reach step 4). Trimmed
+~19 words elsewhere (Overview, one Branch-deletion bullet) to keep the body
+under the ~500-word target after the addition. Only S2-C was rerun; S2-A
+and S2-B's prompts were regenerated from the updated skill body for the
+record but not re-executed (both already passed cleanly and this change
+does not touch the sections either scenario exercises).
+
+### Round 2
+
+**Premise re-check, confirmed intact:** `main:d.txt` still reads `d1`;
+`git log --oneline main` still shows only the `init` / `feature-a` /
+`feature-d` squash commits (no `d2`).
+
+**S2-C (post-merge wrap-up) — 5 of 5 criteria PASS.** The transcript now
+walks all five steps explicitly, numbered, and answers each even where
+blocked:
+1. `git pull` — states it's blocked and flags the local snapshot as
+   possibly stale (same honest soft-pass as round 1).
+2. Greps `main` — PASS, same as before.
+3. Board move — explicitly held: "the PR isn't fully landed, so 'Done'
+   would be wrong."
+4. **"What the merge made stale" — now answered directly, PASS.** Two
+   concrete findings under that heading: `feature-b` needs
+   `git rebase --onto main 7219651 feature-b` before it can merge (a
+   stacked PR left dangling by the squash), and `feature-c` "holds
+   unlanded commits ... closed ≠ safe." Both are genuine staleness findings
+   specific to this fixture, not boilerplate.
+5. Branch deletion — PASS, same refusal-without-server-truth reasoning as
+   round 1, now also naming `deleteBranchOnMerge` as an unchecked fact.
+
+No new rationalization appeared in round 2. Fixture re-verified unmutated
+after the run (`git branch -a`, `git ls-remote --heads origin`, `git log
+--oneline main`, `git show main:d.txt` all matched the pre-round-2 state).
+
+### Final GREEN verdict
+
+| Scenario | Round 1 | Round 2 |
+|---|---|---|
+| S2-A (stacked merge) | PASS | not rerun (already clean) |
+| S2-B (phantom branch) | PASS | not rerun (already clean) |
+| S2-C (post-merge wrap-up) | 4/5 (staleness omitted) | 5/5 |
+
+All three scenarios pass as of round 2. No rationalization-table row was
+added beyond the one already supported by RED evidence (`git branch -a`
+shows it → needs cleanup); the round-1 fix was a structural completeness
+instruction, not a counter-argument.
