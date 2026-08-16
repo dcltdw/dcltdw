@@ -18,6 +18,7 @@
 - **Pointers are trigger-only** — they name the moment, never summarize the skill's workflow (per superpowers:writing-skills SDO: workflow summaries become shortcuts agents follow instead of reading the skill).
 - **TDD (Iron Law):** each skill gets baseline (RED) pressure scenarios run and documented *before* the skill is written, GREEN runs with the skill present, REFACTOR to close observed rationalizations. One skill fully deployed before the next begins. Seed incidents: stacked-PR stranding, phantom dangling branch, squash-merge missing a fix commit.
 - **Known regression, documented:** installed plugins are cached copies, so `git pull` alone no longer updates skills; re-running `./install.sh` becomes the post-pull step. It calls `claude plugin update dcltdw@dcltdw`, which only refreshes that cache when `version` in `claude/.claude-plugin/plugin.json` was bumped in the same pull — every skill-changing task below must bump it (see Global Constraints and CLAUDE.md). `claude plugin marketplace update`, which install.sh also runs, refreshes marketplace metadata only, never the plugin's cached content.
+- **Version target:** intermediate task bumps step through `0.1.x` (Task 4, Task 7); the plugin lands at **`0.2.0`** when the whole skills initiative completes — the bump rides PR 4 and, under hold-back execution, goes live only at the Task 11 cutover.
 - **Four PRs:** (1) plugin scaffolding + install wiring; (2) opening-a-pr skill + AGENTS.md pointer; (3) cleanup skill + AGENTS.md pointers; (4) pre-push hook + AGENTS.md edit.
 
 ## Global Constraints
@@ -31,10 +32,25 @@
 - Claude Code CLI (`claude`) and gitleaks are assumed present on the dev machine; `install.sh` must degrade with a loud warning when either is absent on a target machine.
 - Subagent pressure tests follow superpowers:writing-skills → testing-skills-with-subagents.md. Baseline transcripts (verbatim rationalizations) are saved under `docs/superpowers/plans/testing/` in this repo so GREEN/REFACTOR runs can diff against them.
 - **Delivery-path split:** `claude/AGENTS.md` and `claude/garmin-release.md` ship live on every `git pull`, via the `~/.claude/dcltdw` symlink. `claude/skills/**` ships only through the plugin's version-keyed cache — bump `version` in `claude/.claude-plugin/plugin.json` in the same commit as any skill change, or installed machines keep the stale copy. `claude/githooks/**` (Task 9) is symlink-delivered too (Task 10 wires `core.hooksPath` to `$LINK/githooks`) and does **not** need a version bump.
+- **Hold-back execution (added 2026-08-16; spec:
+  docs/superpowers/specs/2026-08-16-concurrent-agents-and-delivery-paths-design.md):**
+  execute from the worktree `~/Github/dcltdw-exec`; the primary clone
+  `~/Github/dcltdw` stays pinned (no pulls, no checkouts, no edits) so the
+  `~/.claude/dcltdw` symlink keeps serving pre-initiative rules machine-wide.
+  No machine mutations before the cutover task: no `install.sh` against the
+  real machine, no `claude plugin` state changes, no `git config --global`.
+  Assume other agents are active on this machine; verify-and-restore anything
+  global you must read.
+- The `claude` CLI is not on PATH on this machine; for read-only verification
+  use the VSCode extension binary
+  (`~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude`,
+  newest version).
 
 ---
 
 ### Task 0: Branch and commit this plan
+
+**COMPLETED — shipped as PR #16 (merge commit 6abed3a). Do not re-execute.**
 
 **Files:**
 - Create: `docs/superpowers/plans/2026-08-15-pr-skills-plugin.md` (this file, already on disk)
@@ -61,6 +77,8 @@ git commit -m "plan: PR-lifecycle skills plugin extraction"
 ---
 
 ### Task 1: Plugin + marketplace manifests
+
+**COMPLETED — shipped as PR #16 (merge commit 6abed3a). Do not re-execute.**
 
 **Files:**
 - Create: `.claude-plugin/marketplace.json` (repo root)
@@ -110,6 +128,8 @@ this field).
 
 - [ ] **Step 4: Register and install; watch the check pass**
 
+**Pre-hold-back step, already completed in PR #16 — do not re-run.**
+
 ```bash
 claude plugin marketplace add ~/Github/dcltdw
 claude plugin install dcltdw@dcltdw
@@ -134,6 +154,8 @@ git commit -m "feat: plugin + marketplace manifests for dcltdw skills plugin"
 ---
 
 ### Task 2: install.sh wiring + ADOPTING.md, then PR 1
+
+**COMPLETED — shipped as PR #16 (merge commit 6abed3a). Do not re-execute.**
 
 **Files:**
 - Modify: `install.sh` (append a step after the symlink/import steps)
@@ -175,6 +197,8 @@ fi
 Verify actual CLI behavior: confirm `marketplace list` output format, whether `install` on an installed plugin errors (adjust the `|| true`), and whether `marketplace update` also refreshes installed plugin contents. Adapt and record deviations in the PR body.
 
 - [ ] **Step 2: Test idempotency**
+
+**Pre-hold-back step, already completed in PR #16 — do not re-run.**
 
 ```bash
 ./install.sh && ./install.sh
@@ -262,7 +286,11 @@ Grade: does it `checkout main && git pull` (or fetch) first and check the work i
 Write `docs/superpowers/plans/testing/opening-a-pr-baseline.md`: per scenario — prompt used, pass/fail per grading criterion, verbatim rationalizations. If a scenario *passes* at baseline, note it: the skill needn't address it heavily (control result per writing-skills — no failure, nothing to fix). Commit on a new branch `opening-a-pr-skill` (cut from fresh `main` after PR 1 merges):
 
 ```bash
-cd ~/Github/dcltdw && git checkout main && git pull && git checkout -b opening-a-pr-skill
+# Not `git checkout main`: that fails in a linked worktree (main is checked
+# out in the primary clone) and its workaround — checking out main in the
+# primary clone — violates the pin (hold-back regime, Global Constraints).
+# Branch from origin/main in the worktree instead.
+cd ~/Github/dcltdw-exec && git fetch origin && git checkout -b opening-a-pr-skill origin/main
 git add docs/superpowers/plans/testing/opening-a-pr-baseline.md
 git commit -m "test: baseline pressure scenarios for opening-a-pr (RED)"
 ```
@@ -352,11 +380,13 @@ update` is a no-op without a version change — skip this and the check below
 tests a *stale* cache, which could report a false GREEN (the plan's entire
 TDD value is that signal).
 
-```bash
-./install.sh   # now genuinely refreshes: runs `claude plugin update dcltdw@dcltdw`
-find ~/.claude/plugins/cache/dcltdw -name SKILL.md   # confirm opening-a-pr/SKILL.md landed in the NEW version's cache dir before trusting anything below
-```
-Then in a fresh `claude` session in the sandbox repo, give the S1-A prompt and confirm the session invokes `dcltdw:opening-a-pr` (visible skill invocation) before drafting. This tests discovery (description-driven), not just compliance.
+**DEFERRED to the Cutover task (hold-back regime):** pre-cutover, the
+marketplace builds from the pinned primary clone, which does not contain
+this skill — running `install.sh` or `plugin update` here would both fail
+to deliver it and violate the no-machine-mutations constraint. GREEN
+verification for this task is by injection (previous steps). Add this
+skill's fresh-session trigger check, verbatim, to the Cutover task's
+checklist instead.
 
 - [ ] **Step 6: Commit**
 
@@ -372,7 +402,7 @@ already-installed machines (Global Constraints).
 ### Task 5: AGENTS.md pointer for opening-a-pr, then PR 2
 
 **Files:**
-- Modify: `claude/AGENTS.md` ("Branches and PRs" lines 89–108, "PR bodies" lines 110–117, "Project board" lines 119–125)
+- Modify: `claude/AGENTS.md` (the "## Branches and PRs" section, the "## PR bodies" section, the "## Project board" section)
 
 **Interfaces:**
 - Consumes: skill name `dcltdw:opening-a-pr` (Task 4).
@@ -384,7 +414,7 @@ through the version-gated plugin cache (see Global Constraints).
 
 - [ ] **Step 1: Replace the "Branches and PRs" section**
 
-Replace the whole section (currently lines 89–108) with:
+Replace the whole "## Branches and PRs" section with:
 
 ```markdown
 ## Branches and PRs
@@ -399,7 +429,7 @@ Replace the whole section (currently lines 89–108) with:
 
 Note: the two stacked-PR bullets are intentionally *not* re-stated — the open/report-time material is in `dcltdw:opening-a-pr`; the merge-time gate moves to the cleanup skill in Task 8. Between PR 2 and PR 3 merging, the "After a PR merges" prose section still carries the merge-side rules, and the never-merge-stacked bullet's content is temporarily only in the opening skill's cross-reference — acceptable for the hours-to-days gap; flag it in PR 2's body.
 
-- [ ] **Step 2: Delete the "PR bodies" section entirely** (lines 110–117; the template now lives in the skill).
+- [ ] **Step 2: Delete the "## PR bodies" section entirely** (the template now lives in the skill).
 
 - [ ] **Step 3: Trim "Project board"**
 
@@ -412,7 +442,15 @@ Keep the two-terminal-states bullet and the refinement/triage bullet unchanged.
 
 - [ ] **Step 4: Verify the import still parses**
 
-Open a fresh `claude` session; confirm the edited AGENTS.md content appears (e.g. ask "what does our AGENTS.md say about PR bodies?" — expect: pointer to the skill, not the old template).
+**DEFERRED to the Cutover task (hold-back regime):** this step needs a
+fresh `claude` session to read the edited `claude/AGENTS.md` off disk —
+but that content reaches sessions only through the `~/.claude/dcltdw`
+symlink, which serves the **pinned primary clone**, not this worktree.
+Pre-cutover the pinned clone still has the pre-PR-2 AGENTS.md, so the
+check would fail for a reason unrelated to whether this edit is correct
+(nothing to do with skills or the plugin cache — this task has neither).
+Add this AGENTS.md pointer check, verbatim, to the Cutover task's
+checklist instead (see Task 11 Step 5).
 
 - [ ] **Step 5: Commit and open PR 2**
 
@@ -469,7 +507,11 @@ Grade: consults `git ls-remote --heads origin` / `git fetch --prune` before repo
 - [ ] **Step 5: Document RED; branch and commit**
 
 ```bash
-cd ~/Github/dcltdw && git checkout main && git pull && git checkout -b cleanup-after-merge-skill
+# Not `git checkout main`: that fails in a linked worktree (main is checked
+# out in the primary clone) and its workaround — checking out main in the
+# primary clone — violates the pin (hold-back regime, Global Constraints).
+# Branch from origin/main in the worktree instead.
+cd ~/Github/dcltdw-exec && git fetch origin && git checkout -b cleanup-after-merge-skill origin/main
 git add docs/superpowers/plans/testing/cleaning-up-after-pr-merge-baseline.md
 git commit -m "test: baseline pressure scenarios for cleaning-up-after-pr-merge (RED)"
 ```
@@ -546,7 +588,15 @@ base branch and strands, even though GitHub says "Merged".
 
 - [ ] **Step 4: REFACTOR** — counter any new rationalization, rerun, repeat until clean; append results to baseline doc.
 
-- [ ] **Step 5: Live trigger check** — **bump `version` in `claude/.claude-plugin/plugin.json` first** (same reasoning as Task 4 Step 5: `plugin update` no-ops without a version change, so skipping this risks a false GREEN), then `./install.sh`, then `find ~/.claude/plugins/cache/dcltdw -name SKILL.md` to confirm `cleaning-up-after-pr-merge/SKILL.md` landed in the new version's cache dir, then a fresh session in sandbox, S2-B prompt, confirm `dcltdw:cleaning-up-after-pr-merge` is invoked.
+- [ ] **Step 5: Live trigger check** — **bump `version` in `claude/.claude-plugin/plugin.json` first** (same reasoning as Task 4 Step 5: `plugin update` no-ops without a version change, so skipping this risks a false GREEN).
+
+**DEFERRED to the Cutover task (hold-back regime):** pre-cutover, the
+marketplace builds from the pinned primary clone, which does not contain
+this skill — running `install.sh` or `plugin update` here would both fail
+to deliver it and violate the no-machine-mutations constraint. GREEN
+verification for this task is by injection (previous steps). Add this
+skill's fresh-session trigger check, verbatim, to the Cutover task's
+checklist instead.
 
 - [ ] **Step 6: Commit**
 
@@ -579,7 +629,17 @@ only touches `claude/AGENTS.md` (symlink-delivered).
   `./install.sh` in this repo's clone — see ADOPTING.md.)
 ```
 
-- [ ] **Step 2: Fresh-session check** — ask "a PR of ours just merged, what do our rules say to do?"; expect the pointer (and ideally a live skill invocation), not the old prose.
+- [ ] **Step 2: Fresh-session check**
+
+**DEFERRED to the Cutover task (hold-back regime):** this step needs a
+fresh `claude` session to read the edited `claude/AGENTS.md` off disk —
+but that content reaches sessions only through the `~/.claude/dcltdw`
+symlink, which serves the **pinned primary clone**, not this worktree.
+Pre-cutover the pinned clone still has the pre-PR-3 AGENTS.md, so the
+check would fail for a reason unrelated to whether this edit is correct
+(nothing to do with skills or the plugin cache — this task has neither).
+Add this AGENTS.md pointer check, verbatim, to the Cutover task's
+checklist instead (see Task 11 Step 5).
 
 - [ ] **Step 3: Commit and open PR 3**
 
@@ -660,9 +720,9 @@ Verify actual CLI behavior: `gitleaks git --log-opts` syntax against the install
 - [ ] **Step 3: Watch it block (GREEN)**
 
 ```bash
-chmod +x ~/Github/dcltdw/claude/githooks/pre-push
+chmod +x ~/Github/dcltdw-exec/claude/githooks/pre-push
 cd "$S/hook-test/leaky"
-git config core.hooksPath ~/Github/dcltdw/claude/githooks   # repo-local for the test
+git config core.hooksPath ~/Github/dcltdw-exec/claude/githooks   # repo-local for the test
 echo more >> config.py && git commit -am "another commit"
 git push origin main && echo "FAIL: should have been blocked" || echo "PASS: blocked"
 ```
@@ -671,17 +731,24 @@ Expected: blocked (the earlier secret commit is in the outgoing range). Then ver
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/Github/dcltdw && git checkout main && git pull && git checkout -b pre-push-secrets-hook
+# Not `git checkout main`: that fails in a linked worktree (main is checked
+# out in the primary clone) and its workaround — checking out main in the
+# primary clone — violates the pin (hold-back regime, Global Constraints).
+# Branch from origin/main in the worktree instead.
+cd ~/Github/dcltdw-exec && git fetch origin && git checkout -b pre-push-secrets-hook origin/main
 git add claude/githooks/pre-push
 git commit -m "feat: global pre-push gitleaks hook with repo-hook chaining"
 ```
-No `version` bump needed here. `claude/githooks/**` reaches machines via the
-`~/.claude/dcltdw` symlink, not the plugin cache: Task 10 Step 1 sets
-`core.hooksPath` to `$LINK/githooks`, and `$LINK` is that symlink — so the
-hook is live on every `git pull`, the same delivery as `AGENTS.md`. (An
-earlier draft of this rule, during PR 1 review, assumed skills and hooks
-were both cache-gated; verified against Task 10's actual mechanism and
-narrowed to skills only — see Global Constraints and root `CLAUDE.md`.)
+No `version` bump needed here *for delivery*. `claude/githooks/**` reaches
+machines via the `~/.claude/dcltdw` symlink, not the plugin cache: Task 10
+Step 1 sets `core.hooksPath` to `$LINK/githooks`, and `$LINK` is that
+symlink — so the hook is live on every `git pull`, the same delivery as
+`AGENTS.md`. (An earlier draft of this rule, during PR 1 review, assumed
+skills and hooks were both cache-gated; verified against Task 10's actual
+mechanism and narrowed to skills only — see Global Constraints and root
+`CLAUDE.md`.) Task 10 *does* bump `version` to `0.2.0` — that bump is the
+release marker for the whole completed initiative, not a skill-content
+change; see Task 10's version-bump step.
 
 ---
 
@@ -691,6 +758,7 @@ narrowed to skills only — see Global Constraints and root `CLAUDE.md`.)
 - Modify: `install.sh`
 - Modify: `claude/AGENTS.md` ("Before pushing" section)
 - Modify: `claude/ADOPTING.md` (mention the hook + gitleaks dependency)
+- Modify: `claude/.claude-plugin/plugin.json` (version bump to `0.2.0` — see Step 5)
 
 **Interfaces:**
 - Consumes: `claude/githooks/pre-push` (Task 9); `$LINK` variable in `install.sh` (`~/.claude/dcltdw`).
@@ -710,7 +778,27 @@ fi
 command -v gitleaks >/dev/null 2>&1 || echo "NOTE: gitleaks not installed (brew install gitleaks) — the hook will warn, not scan."
 ```
 
-- [ ] **Step 2: Test** — `./install.sh` twice (idempotent); `git config --global --get core.hooksPath` shows `~/.claude/dcltdw/githooks` (or the literal `$HOME` expansion; verify which form git stores and that it resolves).
+- [ ] **Step 2: Test**
+
+Run sandboxed — never against the real machine (hold-back regime).
+`install.sh` honors `CLAUDE_CONFIG_DIR`, and `git config --global` writes
+to `$HOME/.gitconfig` — but `HOME` alone does not fully isolate
+`git config --global`: git also consults `$XDG_CONFIG_HOME/git/config`,
+which `HOME` does not override, and `~/.config/git` exists on this
+machine. Pin `GIT_CONFIG_GLOBAL` too so nothing leaks to the real global
+config:
+
+    SBOX=$(mktemp -d) && mkdir -p "$SBOX/home"
+    HOME="$SBOX/home" CLAUDE_CONFIG_DIR="$SBOX/home/.claude" GIT_CONFIG_GLOBAL="$SBOX/home/.gitconfig" ./install.sh
+    HOME="$SBOX/home" CLAUDE_CONFIG_DIR="$SBOX/home/.claude" GIT_CONFIG_GLOBAL="$SBOX/home/.gitconfig" ./install.sh   # idempotency
+    HOME="$SBOX/home" GIT_CONFIG_GLOBAL="$SBOX/home/.gitconfig" git config --global --get core.hooksPath   # expect: $SBOX/home/.claude/dcltdw/githooks (or unset-warning path)
+
+Verify actual behavior and adapt: the `claude` CLI inside the sandbox will
+take the warning branch (not on PATH) unless you prepend a fakebin shim;
+both branches are acceptable evidence here — what matters is that
+`core.hooksPath` lands in the sandbox's `.gitconfig`, not the real one.
+Confirm afterward that the real `git config --global --get core.hooksPath`
+is unchanged.
 
 - [ ] **Step 3: Replace AGENTS.md "Before pushing" section body with:**
 
@@ -724,15 +812,77 @@ command -v gitleaks >/dev/null 2>&1 || echo "NOTE: gitleaks not installed (brew 
 
 - [ ] **Step 4: Update ADOPTING.md** — add a line to the Install section: "`install.sh` also points `core.hooksPath` at a global pre-push hook that runs gitleaks (`brew install gitleaks`) over outgoing commits; it refuses to override a pre-existing custom `core.hooksPath` and warns instead."
 
-- [ ] **Step 5: Commit and open PR 4**
+- [ ] **Step 5: Bump `version` to `0.2.0` (release marker for the completed initiative)**
+
+In `claude/.claude-plugin/plugin.json`, set `"version": "0.2.0"`. Unlike Task 4's and Task 7's bumps, this one is not required for skill-content delivery — `claude/githooks/**` and the AGENTS.md edit in this task both ship via the symlink, not the cache (see Task 9's commit note and Global Constraints' delivery-path split). `0.2.0` is the user-decided completion marker for the whole skills initiative (Design summary "Version target"): it is what Task 11's cutover checklist verifies, so it must be produced somewhere, and PR 4 is where the initiative's last piece lands.
+
+- [ ] **Step 6: Commit and open PR 4**
 
 ```bash
-git add install.sh claude/AGENTS.md claude/ADOPTING.md
+git add install.sh claude/AGENTS.md claude/ADOPTING.md claude/.claude-plugin/plugin.json
 git commit -m "feat: enforce pre-push secrets scanning via global gitleaks hook"
 git push -u origin pre-push-secrets-hook
 gh pr create --base main --title "Pre-push secrets scanning hook" --body-file -
 ```
 Body via the skill; base `main`. Operational impact: adopters should `brew install gitleaks` and re-run `./install.sh`. **STOP: approval + merge + cleanup skill.**
+
+---
+
+### Task 11: Cutover (user-gated; the single go-live moment)
+
+**Precondition:** PRs 1–4 all merged; the user has paused or finished other
+active agents on this machine and explicitly said to cut over. Do not start
+this task on your own initiative.
+
+**Files:** none in this repo (machine state only).
+
+- [ ] **Step 1a:** `cd ~/Github/dcltdw && git status --porcelain` — check
+  for untracked files at paths now tracked on `main` (e.g. stale copies of
+  the spec/plan carried over from
+  `docs/superpowers/plans/2026-08-16-concurrent-agents-and-delivery-paths.md`
+  Task 0 Step 4's original "leave the originals in place" instruction —
+  since walked back, see that step's note). `git pull` refuses to
+  overwrite an untracked file even when it is byte-identical to the
+  incoming tracked version, so remove any such stale copies before pulling
+  (confirm first that each one matches what's about to be pulled, or that
+  it was already removed).
+- [ ] **Step 1b:** `git checkout main && git pull` — the pin ends here.
+  Confirm `git log` contains all four PRs.
+- [ ] **Step 2:** `brew install gitleaks` (if not present).
+- [ ] **Step 3:** `./install.sh` from the primary clone — installs the
+  0.2.0 plugin (per the user's final-version decision), sets
+  `core.hooksPath`, refreshes the symlink. Capture full output.
+- [ ] **Step 4:** Verify machine state: `git config --global --get
+  core.hooksPath` → `~/.claude/dcltdw/githooks`; plugin listed at 0.2.0;
+  `ls ~/.claude/plugins/cache/dcltdw/dcltdw/` shows the 0.2.0 dir
+  containing both skills.
+- [ ] **Step 5:** Run the deferred trigger checks collected from Tasks 4,
+  5, 7, and 8 (fresh sessions; confirm each skill auto-invokes and each
+  AGENTS.md pointer is live). Recovered verbatim from the pre-deferral plan
+  (git show `6abed3a`) so this step is executable without reading the other
+  four tasks:
+  - [ ] **From Task 4 Step 5 (opening-a-pr trigger):** in a fresh `claude`
+    session in the sandbox repo, give the S1-A prompt and confirm the
+    session invokes `dcltdw:opening-a-pr` (visible skill invocation) before
+    drafting. This tests discovery (description-driven), not just
+    compliance.
+  - [ ] **From Task 5 Step 4 (opening-a-pr AGENTS.md pointer):** open a
+    fresh `claude` session; confirm the edited AGENTS.md content appears
+    (e.g. ask "what does our AGENTS.md say about PR bodies?" — expect:
+    pointer to the skill, not the old template).
+  - [ ] **From Task 7 Step 5 (cleaning-up-after-pr-merge trigger):** a
+    fresh session in the sandbox, S2-B prompt, confirm
+    `dcltdw:cleaning-up-after-pr-merge` is invoked.
+  - [ ] **From Task 8 Step 2 (cleaning-up-after-pr-merge AGENTS.md
+    pointer):** ask "a PR of ours just merged, what do our rules say to
+    do?"; expect the pointer (and ideally a live skill invocation), not
+    the old prose.
+- [ ] **Step 6:** Run one real pre-push hook check: in a scratch repo with
+  a fake-secret commit, confirm the push is blocked by the *global* hook
+  (no repo-local hooksPath override this time).
+- [ ] **Step 7:** Tell the user cutover is complete; they resume the
+  paused agents. Running sessions pick up new rules at their next
+  clear/compaction; pushes go through the hook immediately.
 
 ---
 

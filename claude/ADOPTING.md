@@ -45,8 +45,32 @@ installed machines never see it. Edits to `AGENTS.md`, `garmin-release.md`,
 or this file do **not** need a bump — they ship live through the symlink, not
 the cache.
 
-> `universal.md` remains as a back-compat symlink to `AGENTS.md`, so any repo
-> still importing the old path keeps working. New setups import `AGENTS.md`.
+## Delivery paths
+
+This directory ships through two complementary channels — neither replaces
+the other:
+
+- **The `~/.claude/dcltdw` symlink** (created by `install.sh`) carries
+  everything that must be *live on pull*: the always-loaded `AGENTS.md`
+  import, per-repo opt-in imports (`garmin-release.md`), and — once the
+  pre-push hook lands — `githooks/`, which `core.hooksPath` points into.
+- **The `dcltdw` plugin cache** delivers `skills/` — and only `skills/` —
+  gated by `version` bumps in `.claude-plugin/plugin.json`. (The cached
+  copy is actually a full snapshot of `claude/`, so files like
+  `AGENTS.md` ride along in it too; those ride-alongs are inert, since
+  the live `@`-import resolves through the symlink, not the cache.)
+
+Plugin-only delivery is not currently possible (verified against Claude
+Code 2.1.233, 2026-08): plugins cannot contribute always-loaded
+instruction text, cannot serve per-repo conditional content or
+version-stable import paths, and their cache path is version-stamped and
+therefore unusable as a `core.hooksPath` target. **Revisit retiring the
+symlink when Claude Code ships all three:** (1) always-loaded plugin
+instruction text; (2) per-repo conditional plugin content or a
+version-stable import path into an installed plugin; (3) a version-stable
+path suitable for `core.hooksPath` (or plugin-managed git hooks). Any one
+of them landing is worth a fresh look; all three are needed to retire the
+symlink outright.
 
 ## Per-repo wiring
 
