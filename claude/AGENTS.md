@@ -124,7 +124,8 @@ different remedies; don't let one rule blur them:
 - Say **refinement** or **triage** for backlog work — never "grooming" (outdated).
 
 ## Merging a PR, and after
-- **Before merging any PR, and the moment one merges → use the
+- **Before merging any PR, the moment one merges, or when judging whether a
+  branch is leftover or safe to delete → use the
   `dcltdw:cleaning-up-after-pr-merge` skill.** (Not installed?
   `./install.sh` in this repo's clone — see ADOPTING.md.)
 

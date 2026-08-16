@@ -42,7 +42,7 @@ child's commit history.
 
 So check ancestry instead of guessing whether that gap matters:
 `git merge-base --is-ancestor <parent-tip> main`. True (a true merge, or
-an already-rebased child) — nothing to do. False (squash and rebase
+an already-rebased child) — nothing to do about the history. False (squash and rebase
 merges both rewrite history, so this is the normal case — a brand-new
 commit, never an ancestor of the original branch) — the child's diff
 still duplicates the parent's lines and will conflict.

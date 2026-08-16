@@ -14,10 +14,13 @@ reporting on or deleting anything.
 If the PR's base is not `main`, retarget it to `main` before merging —
 unconditionally, regardless of the check below. Retargeting only moves
 the diff base, not the history, so also check ancestry:
-`git merge-base --is-ancestor <parent-tip> main`. True (a true merge
-commit, or an already-rebased child) — retarget and merge, done. False
-(squash and rebase merges both rewrite history — the normal case; a true
-merge commit passes) — rebase onto `main` first (`git rebase --onto main
+`git merge-base --is-ancestor <parent-tip> main`. Parent branch already
+deleted (the default under `deleteBranchOnMerge`)? `<parent-tip>` is
+still an ancestor of the child — find it in the PR's original commit
+list or `git log <child-branch>`. True (a true merge commit, or an
+already-rebased child) — retarget and merge, done. False (squash and
+rebase merges both rewrite history — the normal case; a true merge
+commit passes) — rebase onto `main` first (`git rebase --onto main
 <parent-tip> <child-branch>`), re-diff to confirm only the child's own
 changes remain, *then* retarget and merge. `dcltdw:opening-a-pr` covers
 this same check (and `deleteBranchOnMerge`) at open/report time; this is
