@@ -443,3 +443,108 @@ This directly reconfirms baseline finding #2 fixed under valid conditions.
 rationalization observed in either transcript. Per the plan, a pass on
 re-run means no SKILL.md change is triggered — the skill was not modified
 in this fix round.
+
+### Round 2 (post-review fix round): SKILL.md prose corrections
+
+A task review (Approved, 3 Important findings) identified three defects
+in the skill's prose itself, independent of the fixture-drift issue above:
+
+1. **Per-repo setting stated as unconditional fact.** `SKILL.md` asserted
+   "Branch auto-delete is on for this repo" as settled fact, in a skill
+   whose own `plugin.json` describes it as cross-project
+   ("Cross-project PR lifecycle skills for dcltdw's repos"). At load time
+   "this repo" is unbound. The harm was visible in the fix-round-1
+   transcripts themselves: `green-raw/S1-B-rerun.txt` asserted "Branch
+   auto-delete is on" about a sandbox with a bare local `origin` and no
+   GitHub behind it at all — an assertion the skill taught the agent to
+   make without checking, the same class of error as the RED
+   misconception (S1-B's false "GitHub usually does this automatically")
+   the skill exists to fix.
+2. **Squash assumed, remedy stated unconditionally.** The duplication
+   claim was correctly conditioned on squash merging, but the "rebase
+   onto main" remedy was not — it was written as if squash were the only
+   merge method, when this repo (and cross-project targets generally)
+   also allows true merges and rebase merges. After a true merge the
+   parent's commits *are* ancestors of `main`, the retargeted child's
+   diff is already clean, and the unconditional remedy would hand the
+   agent a wrong diagnosis and an unnecessary rebase. Evidence: round-1's
+   own GREEN transcripts (`green-raw/S1-A.txt`, `green-raw/S1-B.txt`)
+   distinguished true-merge from squash correctly *without being told to*
+   — a skill that would make a report-time agent (without the git graph
+   in front of it) less precise than the unaided model was is the failure
+   mode to avoid.
+3. **Two rationalization rows invented rather than observed.** Rows 3
+   ("Body sections are overkill for a small or fast diff") and 4
+   ("Nothing asked who/what produced this, so skip Provenance") verbalized
+   a motive the RED transcripts never contained — the RED control had no
+   five-section rule to rationalize *away*, it simply lacked the rule and
+   produced no such excuse. `baseline-raw/S1-A.txt` never argues sections
+   are overkill and never mentions Provenance. Conflating an observed
+   omission with an unobserved excuse; deleted per the Task 4 plan step's
+   "add rows, don't invent hypotheticals."
+
+**Fix applied to `claude/skills/opening-a-pr/SKILL.md`:**
+- The "Stacked PRs" section now opens with an observable check
+  (`gh repo view --json deleteBranchOnMerge`) instead of asserting
+  auto-delete as fact, and conditions the retarget-is-not-a-fix framing on
+  that check's result.
+- The remedy is now gated on an explicit ancestry check
+  (`git merge-base --is-ancestor <parent-tip> main`) rather than assumed:
+  true → nothing to do; false (typical after squash) → rebase. The
+  `git rebase --onto` command is kept, only its applicability is now
+  conditional.
+- A one-clause addition covers recovering `<parent-tip>` when the parent
+  branch has already been auto-deleted (still an ancestor of the child;
+  recoverable from the PR's original commit list or `git log
+  <child-branch>`).
+- Rationalization rows 3 and 4 deleted; rows 1 and 2 (which trace verbatim
+  to `baseline-raw/S1-B.txt` and `baseline-raw/S1-A.txt`) kept, reworded
+  to match the now-conditional framing.
+- Body word count: 590 → 514 after this round's edits (target ~500; the
+  conditional-check wording this round required cost back some of the
+  words the row deletions freed).
+
+**Re-verification (S1-A only, per plan — this scenario exercises both the
+body format and the stacked mechanism):**
+
+Fixture: the same `pr-sandbox-red` fixture from Round "Fixture-drift
+correction" above (not the drifted original), premise re-asserted before
+running:
+
+```
+$ git merge-base --is-ancestor feature-a main && echo "PREMISE VIOLATED — stop" || echo "premise intact"
+premise intact
+```
+
+Transcript: `.superpowers/sdd/2026-08-15-pr-skills-plugin/green-raw/S1-A-refactor.txt`.
+
+- **Body format: PASS, no regression from dropping rows 3/4.** All five
+  sections present under required headings with content:
+  `### Files changed` — `app.txt` `(modified)`; `### Work breakdown` —
+  substantive, not a TODO; `### Test expectations` and
+  `### Operational impact` — both present and explicitly marked "None...
+  Omit this section in the real PR" (correctly treating them as
+  conditional-omit rather than skipping silently); `### Provenance` —
+  `Agent:` and `Model / version:` both present.
+- **Stacked mechanism: PASS, now genuinely conditional.** The transcript
+  runs the actual ancestry check (`git merge-base --is-ancestor feature-a
+  main` → **FALSE**, stated as a verified fact, not assumed) and states
+  the remedy as conditional on that result ("Required before merge if
+  ancestry is still false after #41 lands"), including the squash-specific
+  reasoning ("If #41 is squash-merged, it stays false...") rather than
+  treating squash as the only case.
+- **New criterion — must not assert `deleteBranchOnMerge` or a merge
+  method as fact about an unchecked repo: PASS.** The transcript states,
+  unprompted: "I could not check `gh repo view --json deleteBranchOnMerge`
+  (no GitHub/remote in this environment), so whether the repo auto-deletes
+  branches on merge is **unverified** — please confirm before merging."
+  This is the exact failure Fix 1 targeted, and the corrected skill
+  produced the opposite of the round-1 defect (`green-raw/S1-B-rerun.txt`
+  asserting auto-delete as fact about the same kind of sandbox) on the
+  first re-run.
+- No new rationalization observed.
+
+**Verdict on round 2:** all three criteria pass on the first re-run; no
+regression in body format from removing rows 3/4 (contrary to the
+possibility flagged as a real finding to watch for); no further SKILL.md
+change made.

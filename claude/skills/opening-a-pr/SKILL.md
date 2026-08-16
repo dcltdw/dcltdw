@@ -29,28 +29,31 @@ section a fast draft skips by inventing other headings instead.
 
 ## Stacked PRs (base ≠ main)
 Flag a non-`main` base every time you open, present, or report on the PR —
-the flag only protects the reader if the reason behind it is correct.
+the flag only protects the reader if the reason behind it is checked, not
+assumed.
 
-Branch auto-delete is on for this repo, so GitHub *does* now retarget a
-child PR's base automatically once the parent is squash-merged and its
-branch deleted. That sounds like the problem is solved — it isn't.
-Retargeting changes only which branch the PR diffs against; it does not
-rebase the child's commits. A squash merge creates a brand-new commit on
-`main`, so the parent's original commits are never its ancestors. After
-auto-retarget, the child's diff still shows the parent's already-merged
-lines as new additions, and merging it as-is will conflict or duplicate
-that work.
+Check, don't assume: `gh repo view --json deleteBranchOnMerge` tells you
+whether this repo auto-deletes branches on merge. If so, GitHub retargets
+a child PR's base automatically once the parent merges — sounds solved,
+usually isn't: retargeting changes only which branch the PR diffs
+against, never the child's commit history.
 
-Before merging a retargeted child: rebase it onto current `main`
-(`git rebase --onto main <old-parent-tip> <child-branch>`), then re-diff
-against `main` to confirm only the child's own changes remain. The
-merge-time gate itself lives in `dcltdw:cleaning-up-after-pr-merge`; this
-skill flags the risk at open- and report-time.
+So check ancestry instead of guessing whether that gap matters:
+`git merge-base --is-ancestor <parent-tip> main`. True (a true merge, or
+an already-rebased child) — nothing to do. False (typical after a squash
+merge — a brand-new commit, never an ancestor of the original branch) —
+the child's diff still duplicates the parent's lines and will conflict.
+
+If false: rebase the child onto current `main` (`git rebase --onto main
+<parent-tip> <child-branch>`), then re-diff against `main` to confirm only
+the child's own changes remain. Parent branch already deleted?
+`<parent-tip>` is still an ancestor of the child — find it in the PR's
+original commit list or `git log <child-branch>`. The merge-time gate
+itself lives in `dcltdw:cleaning-up-after-pr-merge`; this skill flags the
+risk at open- and report-time.
 
 ## Rationalizations
 | Excuse | Reality |
 |---|---|
-| "GitHub retargeted it automatically, so it's safe to merge" | Retargeting moves the diff base, not the commit history — the parent's squash commit is never an ancestor of the child's. The diff still duplicates the parent's lines. Rebase onto `main` first. |
-| "Flag the non-`main` base so it doesn't look confusing on merge" | Wrong risk. The real one is stranded/duplicated/conflicting work, not a confusing diff — say that, so the flag actually warns. |
-| "Body sections are overkill for a small or fast diff" | Files-changed annotations and Provenance cost five lines; reconstructing them afterward costs hours. |
-| "Nothing asked who/what produced this, so skip Provenance" | Required unconditionally, not on request — it's the section a fast draft omits by inventing other headings instead. |
+| "Auto-delete/retargeting means it's safe to merge" | Retargeting moves the diff base, not the history. Check ancestry first — a squash-merged parent fails it, so its lines still show as new. |
+| "Flag the non-`main` base so it doesn't look confusing on merge" | Wrong risk. If ancestry fails, the real risk is stranded/duplicated/conflicting work — say that, so the flag actually warns. |
