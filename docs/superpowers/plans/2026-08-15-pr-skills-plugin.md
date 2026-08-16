@@ -661,19 +661,54 @@ Body via `dcltdw:opening-a-pr`; base `main` — say so. **STOP: approval + merge
 **Interfaces:**
 - Produces: hook script activated by Task 10 via `core.hooksPath ~/.claude/dcltdw/githooks`; chains to repo-local hooks.
 
-- [ ] **Step 1: Write the failing test (scratch repos)**
+- [ ] **Step 1: Confirm the pre-hook baseline (not a meaningful RED by itself)**
 
 ```bash
 S=/private/tmp/claude-501/-Users-dcltdw/e48c24e1-2f84-45c5-b56e-2216bd8b34bd/scratchpad
 mkdir -p "$S/hook-test" && cd "$S/hook-test"
 git init --bare remote.git && git clone remote.git leaky && cd leaky
-echo 'aws_key = "AKIAIOSFODNN7EXAMPLE"' > config.py
+echo 'aws_key = "AKIAJDPUYFI4NYCXKPEA"' > config.py  # gitleaks:allow (fixture, not a live credential)
 git add . && git commit -m "add config"
-git push origin main && echo "PUSH SUCCEEDED (RED: secret not blocked)"
+git push origin main && echo "PUSH SUCCEEDED (no hook yet)"
 ```
-Expected now: push succeeds — the RED state (no hook yet).
+**Fixture note:** do not use `AKIAIOSFODNN7EXAMPLE` (AWS's own docs example
+key) here — gitleaks's *default* ruleset explicitly allowlists it (a
+stopword regex matching `.+EXAMPLE$`), so it never fires, RED or GREEN.
+Use a generic fake AWS-access-key-shaped string instead (confirm it trips
+`gitleaks detect --no-git -v -s .` before relying on it in any test) — the
+key above is one such fixture, not a live credential.
+
+**Why this isn't a real RED test:** with no hook installed at all, *any*
+content pushes successfully — the push succeeding here proves nothing
+about secret-detection specifically, only that no hook is currently
+active. Treat this step as a precondition check, not a red bar. The
+meaningful assertion — this exact commit blocked once the hook exists — is
+Step 3.
 
 - [ ] **Step 2: Write `claude/githooks/pre-push`**
+
+> **Superseded.** The draft below (kept for the recursion-hazard
+> illustration) is not what shipped. Code review found two further
+> critical, silent failure modes beyond the recursion hazard already fixed
+> here: (C1) a force-push over an unfetched remote tip builds an invalid
+> `remote_sha..local_sha` range, and gitleaks then reports "0 commits
+> scanned / no leaks found" and **exits 0** — a secret sails through with
+> the hook fully active and no error anywhere; (C2) `input="$(cat)"` +
+> `printf '%s'` drops the trailing newline, so a chained repo-local hook's
+> own `while read` loop silently loses the last (or, on a single-ref push,
+> the *only*) ref record — once Task 10 sets `core.hooksPath` globally,
+> every repo-local ref-inspecting pre-push hook on the machine would stop
+> enforcing with zero errors. Also fixed in the same pass: gitleaks
+> scan-failure output (bad config, etc.) was indistinguishable from
+> "leaks found" in the user-facing message; a blocked push showed no
+> file/line/commit/fingerprint to act on; `--remotes=$remote` silently
+> degenerated to a full-repo scan when `$remote` was a raw URL rather than
+> a configured remote name. See the actual `claude/githooks/pre-push` in
+> the repo for the shipped script, and
+> `.superpowers/sdd/2026-08-15-pr-skills-plugin/task-9-report.md` for the
+> full repro/fix/regression record. Do not copy the code block below as a
+> reference implementation — only the recursion-hazard framing in its
+> final four lines is discussed further down.
 
 ```bash
 #!/usr/bin/env bash
@@ -709,7 +744,14 @@ else
 fi
 
 # Chain to the repository's own pre-push hook, if any.
-repo_hook="$(git rev-parse --git-path hooks/pre-push)"
+# NOT `git rev-parse --git-path hooks/pre-push`: once core.hooksPath is set
+# (the production condition — Task 10 sets it globally), --git-path
+# hooks/pre-push resolves INTO core.hooksPath itself, i.e. to this very
+# script, causing infinite self-recursion on every push. Verified live.
+# --git-common-dir ignores core.hooksPath and always points at the real
+# .git dir (correctly, through a linked worktree, at the shared main .git
+# dir too).
+repo_hook="$(git rev-parse --git-common-dir)/hooks/pre-push"
 if [ -x "$repo_hook" ]; then
   printf '%s' "$input" | "$repo_hook" "$@" || exit $?
 fi
@@ -726,7 +768,38 @@ git config core.hooksPath ~/Github/dcltdw-exec/claude/githooks   # repo-local fo
 echo more >> config.py && git commit -am "another commit"
 git push origin main && echo "FAIL: should have been blocked" || echo "PASS: blocked"
 ```
-Expected: blocked (the earlier secret commit is in the outgoing range). Then verify a clean repo pushes: new clone, harmless commit, push succeeds. Then verify chaining: add an executable `.git/hooks/pre-push` that writes a marker file; push; marker exists.
+Expected: blocked (the earlier secret commit is in the outgoing range —
+verify this against a *fresh* remote/clone pair, not one the earlier
+fixture commit has already reached: once a secret commit is on the
+remote, a later push's `remote_sha..local_sha` range no longer includes
+it, which isn't a bug but will read as one if reused carelessly). Then
+verify a clean repo pushes: new clone, harmless commit, push succeeds.
+
+Then verify chaining — and make the test capable of catching a stdin
+bug, not just a crash: add an executable `.git/hooks/pre-push` that
+**captures its stdin to a file** (not just a marker):
+```bash
+cat > .git/hooks/pre-push <<'EOF'
+#!/usr/bin/env bash
+cat > /tmp/chain-stdin-capture.txt
+exit 0
+EOF
+chmod +x .git/hooks/pre-push
+```
+Push, then assert the captured file contains the expected ref line(s) —
+not just that it's non-empty. A marker-file-only check cannot tell "the
+chained hook ran and got the right input" apart from "the chained hook ran
+and got truncated or empty stdin" (`input="$(cat)"` command substitution
+strips trailing newlines; naively re-piping it can silently drop the last,
+or only, ref record a chained hook's own `while read` loop would see).
+
+Then add a force-push case, since it's the most likely way this hook
+silently stops working in production: clone A pushes a second commit that
+clone B never fetches; clone B commits a secret on top of the stale base
+and force-pushes. Confirm the hook still scans (falling back to
+`--not --remotes=<name>` rather than trusting the possibly-unfetched
+`remote_sha` directly in a range) and blocks — not "0 commits scanned /
+no leaks found" with a silent success.
 
 - [ ] **Step 4: Commit**
 
