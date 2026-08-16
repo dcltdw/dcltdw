@@ -37,13 +37,30 @@ fi
 
 # 3) Register the skills-plugin marketplace and install/update the plugin.
 if command -v claude >/dev/null 2>&1; then
-  if claude plugin marketplace list 2>/dev/null | grep -qi 'dcltdw'; then
+  # Match the marketplace-name field specifically. A bare substring match on
+  # the whole listing also hits unrelated marketplaces sourced from this
+  # account's home dir (e.g. "Source: Directory (/Users/dcltdw/...)"), since
+  # the account name itself is "dcltdw" — that false match would send an
+  # unrelated machine down the `marketplace update` branch below for a
+  # marketplace that was never added, which fails and (being unguarded)
+  # would abort the whole install under `set -euo pipefail`.
+  if claude plugin marketplace list --json | grep -q '"name": "dcltdw"'; then
     claude plugin marketplace update dcltdw
   else
     claude plugin marketplace add "$REPO_DIR"
   fi
-  claude plugin install dcltdw@dcltdw || true   # already-installed is fine
-  echo "skills plugin dcltdw installed/updated"
+  # `plugin install` is a no-op once installed and never picks up a version
+  # bump on its own; `plugin update` is what actually refreshes the cached
+  # copy, but it errors if the plugin isn't installed yet — so run both:
+  # install covers first-time setup, update covers picking up new content.
+  plugin_ok=1
+  claude plugin install dcltdw@dcltdw || plugin_ok=0
+  claude plugin update dcltdw@dcltdw || plugin_ok=0
+  if [ "$plugin_ok" = 1 ]; then
+    echo "skills plugin dcltdw installed/updated"
+  else
+    echo "WARNING: failed to install/update the dcltdw skills plugin — see output above."
+  fi
 else
   echo "WARNING: 'claude' CLI not found — skills plugin NOT installed."
   echo "         Install Claude Code, then re-run ./install.sh"

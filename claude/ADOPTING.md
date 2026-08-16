@@ -22,13 +22,23 @@ The script is idempotent and does three things:
   (migrating the old `@~/Github/dcltdw/claude/universal.md` import if it finds it).
 
 The script also registers this clone as the `dcltdw` plugin marketplace and
-installs the `dcltdw` skills plugin (`dcltdw:opening-a-pr`,
-`dcltdw:cleaning-up-after-pr-merge`).
+installs the `dcltdw` skills plugin. That plugin ships no skills yet — this is
+scaffolding; `dcltdw:opening-a-pr` and `dcltdw:cleaning-up-after-pr-merge` land
+in later PRs onto this same plugin.
 
 After a `git pull`, the symlinked rule files (`AGENTS.md`, `garmin-release.md`)
-are already current — but the **skills plugin is a cached copy** and is not.
-Re-run `./install.sh` after pulling (it runs `claude plugin marketplace update`);
-or enable auto-update for the `dcltdw` marketplace in `/plugin` → Marketplaces.
+are already current — but the **skills plugin is a cached copy**, keyed by the
+`version` field in `claude/.claude-plugin/plugin.json`. Re-run `./install.sh`
+after pulling: it calls `claude plugin update dcltdw@dcltdw`, which refreshes
+the cache — but **only if `version` changed** in the pull you just took.
+Without a bump it reports "already at the latest version" and the stale copy
+survives. (`claude plugin marketplace update`, which install.sh also runs,
+refreshes marketplace metadata only — never the plugin's cached content by
+itself.)
+
+**Standing rule for every future change to this plugin's content:** bump
+`version` in `claude/.claude-plugin/plugin.json`, or installed machines never
+see the change.
 
 > `universal.md` remains as a back-compat symlink to `AGENTS.md`, so any repo
 > still importing the old path keeps working. New setups import `AGENTS.md`.
