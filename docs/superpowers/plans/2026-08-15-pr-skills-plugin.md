@@ -931,10 +931,27 @@ this task on your own initiative.
     ! -name pre-push 2>/dev/null`, adjusted to this machine's actual repo
     root(s)) — these will stop firing once `core.hooksPath` is set globally.
   - Repos with their own repo-local `core.hooksPath` (e.g. husky-style
-    `.husky/_`) — run `git -C <repo> config --get core.hooksPath` per repo
-    found, or `find ~/Github -maxdepth 2 -name .git -exec git -C {}/.. config
-    --get core.hooksPath \;` — these will not be scanned by our hook and get
-    no warning either (repo-local config wins over global).
+    `.husky/_`) — these will not be scanned by our hook and get no warning
+    either (repo-local config wins over global). Use `--local --get`,
+    which is what "repo-local" actually means here: bare `--get` returns
+    the *effective* merged value, which — once Step 3 below runs — is the
+    global value in every ordinary repo, masking exactly the case this is
+    checking for. `find`'s naive `-exec git -C {}/.. …` form breaks on
+    linked worktrees (their `.git` is a *file*, not a directory — `cd
+    .../.git/..` fails) and prints only the config value with no repo name
+    attached, so a relative value like `.husky/_` is unattributable. Use
+    instead:
+    ```
+    find ~/Github -maxdepth 2 -name .git -exec sh -c \
+      'git -C "$(dirname "$1")" config --local --get core.hooksPath && \
+       echo "  ^ $(dirname "$1")"' _ {} \;
+    ```
+    **Known in advance, so the operator isn't rediscovering it live:**
+    `~/Github/annotated-maps-sp` already has its own repo-local
+    `core.hooksPath` (confirmed via `--local`, not inherited from global).
+    Expect it in this list; it will not be scanned by the global hook once
+    Step 3 runs, and needs its own arrangement (chaining `$LINK/githooks/
+    pre-push` from its existing hooks) if it should be.
   Record both lists in the cutover report even if empty.
 - [ ] **Step 3:** `./install.sh` from the primary clone — installs the
   0.2.0 plugin (per the user's final-version decision), sets
@@ -982,16 +999,25 @@ this task on your own initiative.
   accepted-degradation paths, neither of which has been verified live
   before this task:
   - **Missing gitleaks warns and passes:** temporarily shadow `gitleaks`
-    off `PATH` (e.g. `PATH=$(dirname "$(command -v git)") git push ...` or
-    a scratch `PATH` without gitleaks' directory) and push a clean commit;
-    confirm the hook prints the "gitleaks not installed" warning to
-    stderr and the push still succeeds.
-  - **A scan error fails closed:** force gitleaks into an error state
-    (e.g. a broken/unreadable `.gitleaks.toml` config, or an invalid
-    `--log-opts` range) and push; confirm the hook prints the "gitleaks
-    failed to scan cleanly ... push blocked" message and exits non-zero —
-    i.e. an internal gitleaks error blocks the push rather than silently
-    letting it through.
+    off `PATH` with `PATH=/usr/bin:/bin git push ...` (verified: still
+    includes `bash`, so the hook's `#!/usr/bin/env bash` shebang still
+    resolves, and the push prints the "gitleaks not installed" warning and
+    still succeeds, exit 0). **Do not** use `PATH=$(dirname "$(command -v
+    git)")` alone — verified this also strips `bash` off `PATH`, so the
+    hook fails to launch at all (`env: bash: No such file or directory`)
+    and the push fails outright — the opposite of the warn-and-pass
+    behavior this check exists to confirm.
+  - **A scan error fails closed:** force gitleaks into an error state via
+    a broken/unreadable `.gitleaks.toml` config (verified: produces `FTL
+    unable to load gitleaks config` and the hook's distinct scan-error
+    message) — or `GITLEAKS_CONFIG=<garbage-path>` as a second option —
+    and push; confirm the hook prints the "gitleaks failed to scan
+    cleanly ... push blocked" message and exits non-zero. **Do not** try
+    to trigger this via an invalid `--log-opts` range: the hook builds
+    that range itself and pre-validates it with `git rev-list` before
+    ever invoking gitleaks, so a bad range trips the hook's own "could not
+    compute a valid commit range" guard instead — a different message
+    than this step expects.
 - [ ] **Step 7:** Tell the user cutover is complete; they resume the
   paused agents. Running sessions pick up new rules at their next
   clear/compaction; pushes go through the hook immediately.

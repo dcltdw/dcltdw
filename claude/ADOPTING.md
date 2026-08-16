@@ -50,8 +50,10 @@ running `install.sh`:**
   warning at all.** Repo-local config wins over global, so our `pre-push`
   hook never runs there — not even to print the "gitleaks missing" warning.
   These are exactly the repos most likely to have hook tooling already, so
-  don't assume "no warning" means "scanned"; check `git config
-  --get core.hooksPath` (repo-local, no `--global`) if you're unsure.
+  don't assume "no warning" means "scanned"; check `git config --local
+  --get core.hooksPath` if you're unsure — bare `--get` (no `--local`)
+  returns the *effective* merged value, which shows the global value in
+  every ordinary repo and would mask exactly this case.
 - **A `core.hooksPath` pointing at a directory that no longer exists
   disables all hooks, silently.** If `~/.claude/dcltdw/githooks` is missing
   or stale (e.g. a primary clone checked out to a commit before
@@ -59,6 +61,11 @@ running `install.sh`:**
   prints nothing. Verify the path resolves (`ls
   "$(git config --global --get core.hooksPath)"`) if pushes seem
   unexpectedly unscanned.
+
+**To revert:** `git config --global --unset core.hooksPath` undoes this —
+git goes back to consulting each repo's own `.git/hooks/`. No other
+rollback is needed; the `~/.claude/dcltdw` symlink and the skills-plugin
+install from the same `install.sh` run are unaffected.
 
 **Two delivery paths, and they behave differently — this is the single most
 confusing thing about this setup.** `AGENTS.md` and `garmin-release.md` reach
