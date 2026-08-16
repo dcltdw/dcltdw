@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Global pre-push hook (activated via `git config --global core.hooksPath`).
+# Scans outgoing commits for secrets with gitleaks, then chains to the
+# repo's own .git/hooks/pre-push.
+#
+# IMPORTANT: we deliberately resolve the repo-local hook via
+# `git rev-parse --git-common-dir` + "hooks/pre-push", NOT via
+# `git rev-parse --git-path hooks/pre-push`. When core.hooksPath is set
+# (exactly the condition under which this script runs in production),
+# --git-path hooks/pre-push resolves INTO core.hooksPath itself — i.e. to
+# this very script — which would recurse forever on every push. Verified
+# live: with core.hooksPath set, `git rev-parse --git-path hooks/pre-push`
+# printed the core.hooksPath directory; `git rev-parse --git-common-dir`
+# ignores core.hooksPath and always points at the real .git dir (and
+# correctly resolves through worktrees to the shared main .git dir).
+set -uo pipefail
+
+remote="$1"
+input="$(cat)"
+zero=0000000000000000000000000000000000000000
+status=0
+
+if command -v gitleaks >/dev/null 2>&1; then
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "${local_ref:-}" ] && continue
+    [ "$local_sha" = "$zero" ] && continue        # branch deletion: nothing outgoing
+    if [ "$remote_sha" = "$zero" ]; then
+      range="$local_sha --not --remotes=$remote"  # new branch: only commits the remote lacks
+    else
+      range="$remote_sha..$local_sha"
+    fi
+    gitleaks git --redact --log-opts="$range" . || status=1
+  done <<< "$input"
+  if [ "$status" -ne 0 ]; then
+    echo "pre-push: gitleaks flagged potential secrets in outgoing commits; push blocked." >&2
+    echo "          (false positive? add a gitleaks:allow comment or .gitleaksignore entry)" >&2
+    exit 1
+  fi
+else
+  echo "pre-push WARNING: gitleaks not installed — outgoing commits NOT scanned." >&2
+  echo "          brew install gitleaks   (rule: scan the diff for secrets before pushing)" >&2
+fi
+
+# Chain to the repository's own pre-push hook, if any. Resolve it via the
+# real .git dir (--git-common-dir), bypassing core.hooksPath entirely — see
+# the recursion note above. --git-common-dir also does the right thing from
+# a linked worktree (shared hooks live in the main .git dir).
+git_common_dir="$(git rev-parse --git-common-dir 2>/dev/null)" || git_common_dir=""
+if [ -n "$git_common_dir" ]; then
+  repo_hook="$git_common_dir/hooks/pre-push"
+  # Self-invocation guard: never chain into ourselves (e.g. a stray symlink
+  # or a repo-local hooks dir that happens to alias this script).
+  if [ -x "$repo_hook" ]; then
+    self_real="$(realpath "$0" 2>/dev/null || echo "$0")"
+    hook_real="$(realpath "$repo_hook" 2>/dev/null || echo "$repo_hook")"
+    if [ "$hook_real" != "$self_real" ]; then
+      printf '%s' "$input" | "$repo_hook" "$@" || exit $?
+    fi
+  fi
+fi
+exit 0
