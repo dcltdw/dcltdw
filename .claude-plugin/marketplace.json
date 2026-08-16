@@ -1,0 +1,12 @@
+{
+  "name": "dcltdw",
+  "owner": { "name": "dcltdw" },
+  "description": "dcltdw's shared Claude collaboration rules and skills",
+  "plugins": [
+    {
+      "name": "dcltdw",
+      "source": "./claude",
+      "description": "Cross-project PR lifecycle skills for dcltdw's repos"
+    }
+  ]
+}
