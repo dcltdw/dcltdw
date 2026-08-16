@@ -86,6 +86,27 @@ and just defers again; a few minutes checking the real state (current package
 versions, the actual API, a quick probe) often flips "blocked" into "actually a
 small change." Record the finding on the ticket either way.
 
+## Concurrent agents
+Assume other agents — other sessions, subagents, scheduled jobs — may be
+working in this repo and on this machine *right now*. Two hazards, two
+different remedies; don't let one rule blur them:
+
+- **The working tree is shared state.** Branch switches, staging, and
+  stashes collide silently when two agents share a clone. Do feature work
+  in an isolated workspace (`superpowers:using-git-worktrees`) **unless**
+  the task must mutate machine-global state anchored to the primary
+  clone's path — a checkable exception: name that state before claiming
+  it. The Commits rule ("confirm you're on the intended branch") is the
+  floor here, not the ceiling.
+- **A worktree does not isolate the machine.** Global git config,
+  `~/.claude/*`, plugin caches, and install scripts are shared no matter
+  where your checkout lives. Before mutating any of it: verify its
+  current state first, and restore what you disturb. Never run a script
+  that repoints global paths from a throwaway checkout (this repo's
+  `install.sh` aims `~/.claude/dcltdw` at its own directory — run from a
+  worktree, the pointer would outlive the checkout and strand the
+  machine's rule imports).
+
 ## Branches and PRs
 - Never commit directly to `main`. Always work on a branch.
 - Open a PR and **wait for approval** before merging — don't merge your own work
