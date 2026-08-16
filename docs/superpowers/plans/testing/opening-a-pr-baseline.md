@@ -297,16 +297,18 @@ normally.
 ### Round 1
 
 **S1-A (stacked open, time pressure).**
-- (a) base-branch flag + reasoning: sandbox ground truth had shifted (see
-  confound above) — `feature-a` is now a true ancestor of `main`, so `main`
-  is the actually-correct base. The transcript detects this from the real
-  git graph, states it, and *also* correctly reasons about the mechanism
-  the skill teaches: it distinguishes the true-merge case (safe, no
+- (a) base-branch flag + reasoning: **[SUPERSEDED — see "Fixture-drift
+  correction" below.]** sandbox ground truth had shifted (see confound
+  above) — `feature-a` is now a true ancestor of `main`, so `main` is the
+  actually-correct base. The transcript detects this from the real git
+  graph, states it, and *also* correctly reasons about the mechanism the
+  skill teaches: it distinguishes the true-merge case (safe, no
   duplication) from a hypothetical squash-merge of #41 (would duplicate
   `feature-a`'s commit and require `git rebase --onto main e8237a8
   feature-b`) — unprompted. Graded PASS on mechanism-correctness; not
   comparable to baseline's pass/fail on "is the base `feature-a`" because
-  the premise changed.
+  the premise changed. This criterion was re-run on a fixture with the
+  premise intact — see the correction section for the comparable verdict.
 - (b) PR body five sections: **PASS on all three of the checked criteria.**
   `## Files changed` present with `(modified)` annotation on `app.txt`;
   `## Work breakdown` present with substantive content (not a TODO);
@@ -319,8 +321,11 @@ normally.
 - No new rationalization observed.
 
 **S1-B (status report).**
-- Flags #42's non-`main` base unprompted: **PASS, and the baseline's
-  central defect is gone.** The transcript states the retarget-vs-rebase
+- Flags #42's non-`main` base unprompted: **[SUPERSEDED — see
+  "Fixture-drift correction" below; the underlying mechanism-correctness
+  finding stands, re-confirmed on a fixture with the premise intact.]
+  PASS, and the baseline's central defect is gone.** The transcript states
+  the retarget-vs-rebase
   mechanism correctly and explicitly: "stacked children are where work
   gets stranded, duplicated, or turned into conflicts, because retargeting
   only moves what the PR diffs against, it does not rebase the child's
@@ -363,3 +368,78 @@ corrected retarget-vs-rebase mechanism, applied correctly (including
 knowing when *not* to apply it, per S1-A's true-merge case and S1-C's
 non-stacked case). The PR-body five-section failure (the baseline's
 largest defect) is fully reversed in all three transcripts.
+
+### Fixture-drift correction (post-Task-4 fix round)
+
+The round-1 GREEN sandbox (`$S/pr-sandbox/work`) had, by the time S1-A and
+S1-B ran, already been carried through Task 3 Step 4's S1-C setup: `main`
+had `feature-a` merged into it via a true `--no-ff` merge
+(`git merge-base --is-ancestor feature-a main` → true). S1-A and S1-B's
+prompts both assert "PR #41 is still open" / implicitly unmerged — a
+premise that sandbox no longer satisfied. So while round 1's *mechanism*
+findings above are real and stand (the transcripts correctly reasoned
+about retarget-vs-rebase, including in the true-merge case), the
+**base-branch verdict itself is not a valid RED/GREEN comparison**, because
+the ground truth the model was reasoning from had silently changed between
+baseline and GREEN, independent of the skill.
+
+**Fix:** built a second, untouched sandbox at the exact RED-time state,
+kept separate from the drifted one so S1-C's already-valid evidence is
+undisturbed:
+
+```bash
+S=/private/tmp/claude-501/-Users-dcltdw/e48c24e1-2f84-45c5-b56e-2216bd8b34bd/scratchpad
+mkdir -p "$S/pr-sandbox-red" && cd "$S/pr-sandbox-red"
+git init --bare origin.git
+git clone origin.git work && cd work
+echo base > app.txt && git add . && git commit -m "init" && git push -u origin main
+git checkout -b feature-a && echo a >> app.txt && git commit -am "feature a" && git push -u origin feature-a
+git checkout -b feature-b && echo b >> app.txt && git commit -am "feature b" && git push -u origin feature-b
+```
+
+Premise asserted before running anything:
+
+```
+$ git merge-base --is-ancestor feature-a main && echo "PREMISE VIOLATED — stop" || echo "premise intact"
+premise intact
+```
+
+S1-A and S1-B were re-run against this fixture, same clean-room recipe,
+same injected-prompt construction (full SKILL.md body + pointer line +
+verbatim scenario prompt). Transcripts:
+`.superpowers/sdd/2026-08-15-pr-skills-plugin/green-raw/S1-{A,B}-rerun.txt`.
+(S1-C was not re-run — its own premise *is* the post-merge state, so the
+original run's evidence already stands; the PR-body-format criterion in
+all three original scenarios is also unaffected by this drift, since body
+structure doesn't depend on branch topology, and stands as first
+recorded.)
+
+**S1-A re-run — base-branch criterion: PASS.** Flags the base as
+`feature-a`, not `main`, as a labeled line ("**`feature-a`** (not `main`)
+— this is a stacked PR"), backed by an actual diff comparison (`git diff
+main...feature-b` shows 2 added lines vs. `git diff feature-a...feature-b`
+shows 1). The stated reason is the *correct* one, not the RED baseline's
+weaker "will look confusing" substitute: the PR body itself states, in a
+callout, that #41 will land as a squash commit that is never an ancestor
+of `main`, that auto-delete means GitHub will retarget the base
+automatically, that "the retarget is not a fix," and that the diff will
+still duplicate #41's line and require `git rebase --onto main feature-a
+feature-b` before merge. This directly targets baseline finding #3 (wrong
+reason attributed to a correct behavior) and confirms it fixed on a
+premise-valid fixture.
+
+**S1-B re-run — base-branch criterion: PASS.** Flags #42's non-`main` base
+unprompted, states the parent/child relationship, and explicitly states
+the corrected mechanism unprompted: "Branch auto-delete is on, so GitHub
+will automatically retarget #42's base to `main` once #41 is squash-merged
+... but retargeting only changes which branch the PR diffs against, it
+does not rebase #42's commits, ... after auto-retarget #42's diff will
+still show #41's already-merged line as a new addition." No trace of the
+RED baseline's false "GitHub usually does this automatically" claim on a
+fixture where that claim's premise (parent not yet merged) actually holds.
+This directly reconfirms baseline finding #2 fixed under valid conditions.
+
+**Verdict on the correction:** both re-run criteria pass; no new
+rationalization observed in either transcript. Per the plan, a pass on
+re-run means no SKILL.md change is triggered — the skill was not modified
+in this fix round.
