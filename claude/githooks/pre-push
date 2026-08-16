@@ -120,6 +120,7 @@ if command -v gitleaks >/dev/null 2>&1; then
   if [ "$leak_found" -ne 0 ]; then
     echo "pre-push: gitleaks flagged potential secrets in outgoing commits; push blocked." >&2
     echo "          (false positive? add a gitleaks:allow comment, or a .gitleaksignore entry keyed by the Fingerprint shown above)" >&2
+    echo "          (need to push anyway right now? git push --no-verify skips this scan)" >&2
     exit 1
   fi
 else

@@ -922,13 +922,39 @@ this task on your own initiative.
 - [ ] **Step 1b:** `git checkout main && git pull` — the pin ends here.
   Confirm `git log` contains all four PRs.
 - [ ] **Step 2:** `brew install gitleaks` (if not present).
+- [ ] **Step 2b (inventory before flipping the switch):** Before running
+  `./install.sh`, survey what setting `core.hooksPath` globally will
+  silently affect on this machine, and show the user this list before they
+  consent to Step 3:
+  - Repos with repo-local hooks other than `pre-push` in `.git/hooks/*`
+    (e.g. `find ~/Github -maxdepth 4 -path '*/.git/hooks/*' ! -name '*.sample'
+    ! -name pre-push 2>/dev/null`, adjusted to this machine's actual repo
+    root(s)) — these will stop firing once `core.hooksPath` is set globally.
+  - Repos with their own repo-local `core.hooksPath` (e.g. husky-style
+    `.husky/_`) — run `git -C <repo> config --get core.hooksPath` per repo
+    found, or `find ~/Github -maxdepth 2 -name .git -exec git -C {}/.. config
+    --get core.hooksPath \;` — these will not be scanned by our hook and get
+    no warning either (repo-local config wins over global).
+  Record both lists in the cutover report even if empty.
 - [ ] **Step 3:** `./install.sh` from the primary clone — installs the
   0.2.0 plugin (per the user's final-version decision), sets
-  `core.hooksPath`, refreshes the symlink. Capture full output.
+  `core.hooksPath`, refreshes the symlink. Capture full output, including
+  the new install-time warning about `core.hooksPath` disabling other
+  repo-local hook types machine-wide (expect it in the success branch).
+  **Rollback, if this cutover needs to be undone:** `git config --global
+  --unset core.hooksPath` restores git to consulting each repo's own
+  `.git/hooks/`, undoing this step (the symlink and plugin install from
+  the same run are unaffected and don't need separate rollback).
 - [ ] **Step 4:** Verify machine state: `git config --global --get
-  core.hooksPath` → `~/.claude/dcltdw/githooks`; plugin listed at 0.2.0;
-  `ls ~/.claude/plugins/cache/dcltdw/dcltdw/` shows the 0.2.0 dir
-  containing both skills.
+  core.hooksPath` → the **expanded absolute path**
+  `$HOME/.claude/dcltdw/githooks` (install.sh writes the resolved path via
+  `$LINK/githooks` where `$LINK="$CLAUDE_HOME/dcltdw"` — NOT the literal
+  tilde form `~/.claude/dcltdw/githooks`; compare against the expanded
+  value, e.g. `[ "$(git config --global --get core.hooksPath)" =
+  "$HOME/.claude/dcltdw/githooks" ]`, or resolve both sides before
+  comparing); plugin listed at 0.2.0; `ls
+  ~/.claude/plugins/cache/dcltdw/dcltdw/` shows the 0.2.0 dir containing
+  both skills.
 - [ ] **Step 5:** Run the deferred trigger checks collected from Tasks 4,
   5, 7, and 8 (fresh sessions; confirm each skill auto-invokes and each
   AGENTS.md pointer is live). Recovered verbatim from the pre-deferral plan
@@ -952,7 +978,20 @@ this task on your own initiative.
     the old prose.
 - [ ] **Step 6:** Run one real pre-push hook check: in a scratch repo with
   a fake-secret commit, confirm the push is blocked by the *global* hook
-  (no repo-local hooksPath override this time).
+  (no repo-local hooksPath override this time). Also confirm the two
+  accepted-degradation paths, neither of which has been verified live
+  before this task:
+  - **Missing gitleaks warns and passes:** temporarily shadow `gitleaks`
+    off `PATH` (e.g. `PATH=$(dirname "$(command -v git)") git push ...` or
+    a scratch `PATH` without gitleaks' directory) and push a clean commit;
+    confirm the hook prints the "gitleaks not installed" warning to
+    stderr and the push still succeeds.
+  - **A scan error fails closed:** force gitleaks into an error state
+    (e.g. a broken/unreadable `.gitleaks.toml` config, or an invalid
+    `--log-opts` range) and push; confirm the hook prints the "gitleaks
+    failed to scan cleanly ... push blocked" message and exits non-zero —
+    i.e. an internal gitleaks error blocks the push rather than silently
+    letting it through.
 - [ ] **Step 7:** Tell the user cutover is complete; they resume the
   paused agents. Running sessions pick up new rules at their next
   clear/compaction; pushes go through the hook immediately.
