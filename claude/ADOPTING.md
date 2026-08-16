@@ -24,7 +24,13 @@ The script is idempotent and does three things:
   (migrating the old `@~/Github/dcltdw/claude/universal.md` import if it finds it);
 - registers this clone as the `dcltdw` plugin marketplace and installs the
   `dcltdw` skills plugin — home to this repo's PR-lifecycle skills,
-  `dcltdw:opening-a-pr` and `dcltdw:cleaning-up-after-pr-merge`.
+  `dcltdw:opening-a-pr` and `dcltdw:cleaning-up-after-pr-merge`;
+- `install.sh` also points `core.hooksPath` at a global pre-push hook that
+  runs gitleaks (`brew install gitleaks`) over outgoing commits; it refuses
+  to override a pre-existing custom `core.hooksPath` and warns instead. A
+  push from a GUI git client or IDE may run with a reduced `PATH` that
+  doesn't include `gitleaks`, in which case the hook warns and the push
+  goes through unscanned.
 
 **Two delivery paths, and they behave differently — this is the single most
 confusing thing about this setup.** `AGENTS.md` and `garmin-release.md` reach

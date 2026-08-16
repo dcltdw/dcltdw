@@ -84,6 +84,17 @@ else
   echo "         (a VSCode-only install does not add it), then re-run ./install.sh" >&2
 fi
 
+# 4) Global pre-push secrets scan (gitleaks) via core.hooksPath.
+existing="$(git config --global --get core.hooksPath || true)"
+if [ -z "$existing" ] || [ "$existing" = "$LINK/githooks" ]; then
+  git config --global core.hooksPath "$LINK/githooks"
+  echo "global core.hooksPath -> $LINK/githooks (pre-push secrets scan)"
+else
+  echo "WARNING: core.hooksPath already set to '$existing' — NOT overriding."
+  echo "         To get the secrets scan, chain $LINK/githooks/pre-push from your hooks."
+fi
+command -v gitleaks >/dev/null 2>&1 || echo "NOTE: gitleaks not installed (brew install gitleaks) — the hook will warn, not scan."
+
 echo
 echo "Done. Start a new Claude session (or /clear) to pick up the rules."
 echo "Garmin repos: add '@~/.claude/dcltdw/garmin-release.md' to that repo's CLAUDE.md (see claude/ADOPTING.md)."
