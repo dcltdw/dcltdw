@@ -569,6 +569,17 @@ No new rationalization appeared in round 2. Fixture re-verified unmutated
 after the run (`git branch -a`, `git ls-remote --heads origin`, `git log
 --oneline main`, `git show main:d.txt` all matched the pre-round-2 state).
 
+**Calibration on this result: n=1, under-powered.** The round-1→round-2
+fix was a behaviour-shaping instruction ("report status on each step,
+including blocked ones"), and `superpowers:writing-skills` asks for 5+
+reps before treating that kind of wording as validated — single samples
+lie, in both directions. One rerun going 5/5 is encouraging, not proof
+the instruction reliably holds; it's equally consistent with a wording fix
+that generalizes and with a lucky sample that happened to walk the full
+list this one time. Treat this as a promising signal pending a fuller
+check, not a closed question — that fuller check belongs at the Task 11
+cutover, not here.
+
 ### Refactor round 2 (post-task-review fixes)
 
 Task review of the round-1/round-2 skill (above) found the round-1 S2-A
