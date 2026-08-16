@@ -61,6 +61,8 @@ cd ~/Github/dcltdw-exec && git branch --show-current   # expect: agents-concurre
 
 Both files are untracked in the primary clone (`docs/superpowers/specs/2026-08-16-concurrent-agents-and-delivery-paths-design.md` and `docs/superpowers/plans/2026-08-16-concurrent-agents-and-delivery-paths.md`). Copy them to the same relative paths in `~/Github/dcltdw-exec` (create directories as needed). Leave the originals in place — the primary clone is not to be edited, and untracked files don't affect its pin.
 
+**Note (added post-review, 2026-08-16):** "Leave the originals in place" created a hazard — once these paths are tracked here and merge to `main`, the primary clone's Task 11 Step 1b `git pull` refuses to overwrite the still-untracked local copies, even though they're byte-identical to the incoming tracked files. The controller subsequently removed both untracked copies from the primary clone by ruling (nothing was lost — they matched what's committed here byte-for-byte); Task 11 Step 1a (added by Task 2 Step 9) now also defends against this recurring.
+
 - [ ] **Step 5: Append a hold notice to the in-flight plan's ledger**
 
 Append to `~/Github/dcltdw/.superpowers/sdd/2026-08-15-pr-skills-plugin/progress.md` (untracked scratch — writing it does not violate the pin):
@@ -156,6 +158,7 @@ Body: five-section format. Base is `main` — say so. Operational impact must st
 - Modify: `claude/ADOPTING.md` (add "Delivery paths" section; remove the universal.md back-compat note)
 - Delete: `claude/universal.md` (symlink)
 - Modify: `docs/superpowers/plans/2026-08-15-pr-skills-plugin.md` (hold-back amendments + new cutover task)
+- Modify: `.gitignore` (track `.superpowers/` scratch)
 
 **Interfaces:**
 - Consumes: spec Item B and hold-back sections.
@@ -165,14 +168,20 @@ Body: five-section format. Base is `main` — say so. Operational impact must st
 
 ```bash
 cd ~/Github/dcltdw-exec
-git checkout main && git pull --ff-only   # worktree may pull; the PIN applies to the primary clone only
-git checkout -b delivery-paths-docs
+# Not `git checkout main`: main is already checked out in the primary clone,
+# so a linked worktree's checkout of the same branch fails outright
+# (`fatal: 'main' is already used by worktree at ...`, reproduced on git
+# 2.50.1) — and the obvious recovery, checking out main in the primary
+# clone, is a direct pin violation. Fetch and branch from origin/main
+# instead; never check out main locally in this worktree.
+git fetch origin
+git checkout -b delivery-paths-docs origin/main
 ```
 (If PR A has merged by now this picks up its commit; if not, branching from pre-A main is equally fine — the files are disjoint.)
 
 - [ ] **Step 2: Add the "Delivery paths" section to `claude/ADOPTING.md`**
 
-Insert after the Install section (after the paragraph block ending "…see the plan's Task 10" area — anchor on the existing post-pull/version-bump paragraphs, placing this new section immediately after them):
+Insert after the Install section, immediately after the existing post-pull/version-bump paragraphs (`claude/ADOPTING.md:30–46`):
 
 ```markdown
 ## Delivery paths
@@ -208,7 +217,20 @@ git rm claude/universal.md
 ```
 Then delete the back-compat blockquote from `claude/ADOPTING.md` (the `> universal.md remains as a back-compat symlink…` note). Do **not** touch `install.sh`'s legacy-import migration — it stays as the safety net, per the spec.
 
-- [ ] **Step 4: Amend the in-flight plan — Global Constraints**
+- [ ] **Step 4: Track `.superpowers/` in the tracked `.gitignore`**
+
+The tracked `.gitignore` currently contains only `.DS_Store`; the SDD scratch
+tree is excluded only by `.superpowers/sdd/.gitignore`, which contains a bare
+`*` — itself disposable scratch that self-ignores. Recreate the scratch tree
+without that inner file present (e.g. a fresh clone, or after it's deleted)
+and a `git add -A` would commit the whole ledger. Add to the tracked
+`.gitignore`:
+
+```
+.superpowers/
+```
+
+- [ ] **Step 5: Amend the in-flight plan — Global Constraints**
 
 In `docs/superpowers/plans/2026-08-15-pr-skills-plugin.md`, append to the Global Constraints list:
 
@@ -228,7 +250,7 @@ In `docs/superpowers/plans/2026-08-15-pr-skills-plugin.md`, append to the Global
   newest version).
 ```
 
-- [ ] **Step 5: Amend the in-flight plan — defer the live trigger checks**
+- [ ] **Step 6: Amend the in-flight plan — defer the live trigger checks**
 
 Locate Task 4 Step 5 and Task 7 Step 5 (the live trigger checks; the fix-wave text requires a `version` bump, `./install.sh`, a cache presence check, and a fresh-session skill-invocation test). In **each**, keep the version-bump requirement (the bump still rides the skill's commit) and replace the install/cache/fresh-session portion with:
 
@@ -244,7 +266,29 @@ checklist instead.
 
 Apply the same deferral to Task 8 Step 2 and Task 5 Step 4 (the fresh-session AGENTS.md pointer checks): the pointer edits are symlink-delivered but the pinned clone won't contain them until cutover, so those checks also move to the Cutover checklist.
 
-- [ ] **Step 6: Amend the in-flight plan — sandbox Task 10's install.sh testing**
+- [ ] **Step 7: Amend the in-flight plan — replace stale AGENTS.md line-number references in Task 5**
+
+Task 5 of `docs/superpowers/plans/2026-08-15-pr-skills-plugin.md` addresses
+`claude/AGENTS.md` by line number in three places. Those numbers were
+correct at `6abed3a`, but PR A's insertion shifts everything after it —
+"lines 89–108" now spans exactly the new `## Concurrent agents` section,
+start to end. An executor who trusts the literal numbers would delete the
+rule PR A adds and leave "Branches and PRs" untouched. Replace all three
+with heading anchors so they can't drift again this way; preserve each
+bullet's surrounding meaning, only the addressing changes:
+
+- **Files block:** ``- Modify: `claude/AGENTS.md` ("Branches and PRs"
+  lines 89–108, "PR bodies" lines 110–117, "Project board" lines 119–125)``
+  → ``- Modify: `claude/AGENTS.md` (the "## Branches and PRs" section, the
+  "## PR bodies" section, the "## Project board" section)``
+- **Step 1:** `Replace the whole section (currently lines 89–108) with:` →
+  `Replace the whole "## Branches and PRs" section with:`
+- **Step 2:** `- [ ] **Step 2: Delete the "PR bodies" section entirely**
+  (lines 110–117; the template now lives in the skill).` → `- [ ] **Step 2:
+  Delete the "## PR bodies" section entirely** (the template now lives in
+  the skill).`
+
+- [ ] **Step 8: Amend the in-flight plan — sandbox Task 10's install.sh testing**
 
 In Task 10 Step 2 (idempotency test of `install.sh` with the hookPath step), replace the bare `./install.sh` runs with sandboxed runs and add the isolation note:
 
@@ -266,7 +310,7 @@ Confirm afterward that the real `git config --global --get core.hooksPath`
 is unchanged.
 ```
 
-- [ ] **Step 7: Amend the in-flight plan — add the Cutover task**
+- [ ] **Step 9: Amend the in-flight plan — add the Cutover task**
 
 Append after Task 10, before the Self-review section:
 
@@ -281,8 +325,16 @@ this task on your own initiative.
 
 **Files:** none in this repo (machine state only).
 
-- [ ] **Step 1:** `cd ~/Github/dcltdw && git checkout main && git pull` —
-  the pin ends here. Confirm `git log` contains all four PRs.
+- [ ] **Step 1a:** `cd ~/Github/dcltdw && git status --porcelain` — check
+  for untracked files at paths this branch now tracks (e.g. stale copies of
+  the spec/plan carried over from Task 0 Step 4's original "leave the
+  originals in place" instruction — since walked back, see that step's
+  note). `git pull` refuses to overwrite an untracked file even when it is
+  byte-identical to the incoming tracked version, so remove any such stale
+  copies before pulling (confirm first that each one matches what's about
+  to be pulled, or that it was already removed).
+- [ ] **Step 1b:** `git checkout main && git pull` — the pin ends here.
+  Confirm `git log` contains all four PRs.
 - [ ] **Step 2:** `brew install gitleaks` (if not present).
 - [ ] **Step 3:** `./install.sh` from the primary clone — installs the
   0.2.0 plugin (per the user's final-version decision), sets
@@ -304,26 +356,27 @@ this task on your own initiative.
 
 Also update the plan's version-bump note in the Design summary if needed so Task 11's "0.2.0" claim is consistent with the user's decision recorded there (PR 4 bumps to 0.2.0; intermediate task bumps step through 0.1.x).
 
-- [ ] **Step 8: Self-check the amended plan**
+- [ ] **Step 10: Self-check the amended plan**
 
 ```bash
 cd ~/Github/dcltdw-exec
 grep -n "DEFERRED to the Cutover" docs/superpowers/plans/2026-08-15-pr-skills-plugin.md | wc -l   # expect: 4
 grep -n "### Task 11: Cutover" docs/superpowers/plans/2026-08-15-pr-skills-plugin.md              # expect: present, after Task 10
 grep -n "Hold-back execution" docs/superpowers/plans/2026-08-15-pr-skills-plugin.md               # expect: in Global Constraints
+grep -n 'lines 89\|lines 110\|lines 119' docs/superpowers/plans/2026-08-15-pr-skills-plugin.md    # expect: no output (Step 7's heading-anchor replacement)
 ```
 Read the amended Task 4/5/7/8 steps once end-to-end: each must still make sense as a sequence (bump kept, injection GREEN kept, deferral note in place).
 
-- [ ] **Step 9: Commit, push, open PR B**
+- [ ] **Step 11: Commit, push, open PR B**
 
 ```bash
-git add claude/ADOPTING.md docs/superpowers/plans/2026-08-15-pr-skills-plugin.md
-git add -u claude/universal.md
+git add claude/ADOPTING.md .gitignore docs/superpowers/plans/2026-08-15-pr-skills-plugin.md
 git commit -m "docs: delivery-path split + exit criteria; retire universal.md; hold-back amendments to skills plan"
 git push -u origin delivery-paths-docs
 gh pr create --base main --title "Delivery paths: document the split, retire universal.md, hold-back cutover" --body-file <body>
 ```
-Body: five-section format; base `main` — say so; `claude/universal.md` listed as `(deleted)`. Operational impact: nothing goes live at merge (pinned clone); universal.md removal is safe (zero imports verified 2026-08-16, and `install.sh`'s legacy migration remains); the in-flight plan's executors must follow the amended Global Constraints. **STOP: wait for user approval on both PRs.**
+(`git rm claude/universal.md` in Step 3 already staged the deletion — no separate `git add -u` needed.)
+Body: five-section format; base `main` — say so; `claude/universal.md` listed as `(deleted)`; `.gitignore` listed as `(modified)`. Operational impact: nothing goes live at merge (pinned clone); universal.md removal is safe (zero imports verified 2026-08-16, and `install.sh`'s legacy migration remains); the in-flight plan's executors must follow the amended Global Constraints. **STOP: wait for user approval on both PRs.**
 
 ---
 
@@ -333,7 +386,7 @@ For each PR: confirm `main` contains the change (grep, from the **worktree** —
 
 ## Self-review notes (done at plan time)
 
-- **Spec coverage:** Item A → Task 1; Item B → Task 2 Steps 2–3; hold-back/cutover → Task 0 + Task 2 Steps 4–7; sequencing (post-#16, pre-plan-PR-2, either merge order) → Task 0 Step 1 + Task 2 Step 1. Decision provenance (rule strength, universal.md, 0.2.0) lives in the spec.
+- **Spec coverage:** Item A → Task 1; Item B → Task 2 Steps 2–3; hold-back/cutover → Task 0 + Task 2 Steps 5, 6, 8, 9; sequencing (post-#16, pre-plan-PR-2, either merge order) → Task 0 Step 1 + Task 2 Step 1. AGENTS.md line-drift fix (post-review) → Task 2 Step 7; `.gitignore` scratch fix (post-review) → Task 2 Step 4. Decision provenance (rule strength, universal.md, 0.2.0) lives in the spec.
 - **Pin integrity:** the only primary-clone operations are Task 0 Step 2 (the one pull) and Step 5 (append to untracked scratch). Everything else is worktree-only. Post-merge routine explicitly avoids pulling the primary clone.
 - **No placeholders:** all inserted texts are verbatim in this plan; the two `<body>` references are composed by the executor from the constraints given (content requirements enumerated in each step).
 - **Consistency:** branch names `agents-concurrent-rule` / `delivery-paths-docs` used identically in Tasks 0–2; deferral count (4) matches the enumerated steps (Tasks 4, 5, 7, 8).
