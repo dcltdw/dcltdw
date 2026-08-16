@@ -930,6 +930,22 @@ this task on your own initiative.
     (e.g. `find ~/Github -maxdepth 4 -path '*/.git/hooks/*' ! -name '*.sample'
     ! -name pre-push 2>/dev/null`, adjusted to this machine's actual repo
     root(s)) — these will stop firing once `core.hooksPath` is set globally.
+    **Recorded baseline (dated 2026-08-16):** a machine-wide audit found no
+    active repo-local hooks anywhere under `~/Github` — every hook file
+    present was a stock `.sample`, which git never executes. Command used:
+    ```
+    find ~/Github -maxdepth 4 -path '*/.git/hooks/*' -type f -perm -u+x \
+      ! -name '*.sample'
+    ```
+    returned nothing. Consequence: arming `core.hooksPath` globally — which
+    stops git running every repo-local hook type except `pre-push` — has
+    **zero practical cost as of this date**; nothing breaks at cutover. The
+    warning above still stands going forward, though: the trap fires the
+    moment any repo adopts husky, the `pre-commit` framework, or git-lfs's
+    non-push hooks, and it fails silently. This baseline exists so a future
+    cutover, audit, or the planned repo migration can re-run the command
+    above and tell whether it's still true, instead of re-deriving it from
+    scratch.
   - Repos with their own repo-local `core.hooksPath` (e.g. husky-style
     `.husky/_`) — these will not be scanned by our hook and get no warning
     either (repo-local config wins over global). Use `--local --get`,
@@ -949,10 +965,34 @@ this task on your own initiative.
     **Known in advance, so the operator isn't rediscovering it live:**
     `~/Github/annotated-maps-sp` already has its own repo-local
     `core.hooksPath` (confirmed via `--local`, not inherited from global).
-    Expect it in this list; it will not be scanned by the global hook once
-    Step 3 runs, and needs its own arrangement (chaining `$LINK/githooks/
-    pre-push` from its existing hooks) if it should be.
+    Expect it in this list. Investigated 2026-08-16: the value is
+    `/Users/dcltdw/Github/annotated-maps-sp/.git/hooks` — git's default
+    hooks location anyway — and the directory holds only the fifteen stock
+    `.sample` files, which git never executes; the setting is a no-op that
+    changes nothing about which hooks currently run. But because it's set
+    *locally*, it takes precedence over the global one once Step 3 runs,
+    making this repo the single place on this machine where pushes would
+    go **silently unscanned** after cutover. See Step 2c for the remedy —
+    unsetting it is a strict improvement, not a workaround.
   Record both lists in the cutover report even if empty.
+- [ ] **Step 2c (remedy: `annotated-maps-sp`'s redundant `core.hooksPath`,
+  before arming):** Run:
+  ```bash
+  git -C ~/Github/annotated-maps-sp config --local --unset core.hooksPath
+  ```
+  This is a strict improvement and loses nothing: the repo's hook behavior
+  is unchanged (the local value already pointed at git's own default
+  location, which has never held anything but inert `.sample` files), and
+  the repo gains secret scanning from the global hook once Step 3 runs. It
+  is a config change to a repo outside this initiative, so confirm with
+  the user before running it rather than assuming consent.
+  Verify immediately: `git -C ~/Github/annotated-maps-sp config --local
+  --get core.hooksPath` returns nothing. The second half of the
+  confirmation — that non-local resolution now reaches the new global
+  value — can't be checked until Step 3 sets `core.hooksPath` globally;
+  once Step 4 has verified that global value, `git -C
+  ~/Github/annotated-maps-sp config --get core.hooksPath` (no `--local`)
+  will return it too, confirming this repo is now covered like any other.
 - [ ] **Step 3:** `./install.sh` from the primary clone — installs the
   0.2.0 plugin (per the user's final-version decision), sets
   `core.hooksPath`, refreshes the symlink. Capture full output, including
