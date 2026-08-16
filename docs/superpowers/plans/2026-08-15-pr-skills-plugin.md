@@ -17,7 +17,7 @@
 - **AGENTS.md keeps** (untouched): memory routing, model handoffs, handoff prompts, clarify-before-proceeding, blocked-spike, Commits, Before claiming done. "Branches and PRs" keeps its three evergreen bullets + a pointer; "PR bodies" and "After a PR merges" collapse to pointers; "Project board" keeps board-tracking, the two-terminal-states definition, and refinement/triage terminology; "Before pushing" points at the hook with a manual fallback.
 - **Pointers are trigger-only** — they name the moment, never summarize the skill's workflow (per superpowers:writing-skills SDO: workflow summaries become shortcuts agents follow instead of reading the skill).
 - **TDD (Iron Law):** each skill gets baseline (RED) pressure scenarios run and documented *before* the skill is written, GREEN runs with the skill present, REFACTOR to close observed rationalizations. One skill fully deployed before the next begins. Seed incidents: stacked-PR stranding, phantom dangling branch, squash-merge missing a fix commit.
-- **Known regression, documented:** installed plugins are cached copies, so `git pull` alone no longer updates skills; re-running `./install.sh` becomes the post-pull step (it runs `claude plugin marketplace update`).
+- **Known regression, documented:** installed plugins are cached copies, so `git pull` alone no longer updates skills; re-running `./install.sh` becomes the post-pull step. It calls `claude plugin update dcltdw@dcltdw`, which only refreshes that cache when `version` in `claude/.claude-plugin/plugin.json` was bumped in the same pull — every skill-changing task below must bump it (see Global Constraints and CLAUDE.md). `claude plugin marketplace update`, which install.sh also runs, refreshes marketplace metadata only, never the plugin's cached content.
 - **Four PRs:** (1) plugin scaffolding + install wiring; (2) opening-a-pr skill + AGENTS.md pointer; (3) cleanup skill + AGENTS.md pointers; (4) pre-push hook + AGENTS.md edit.
 
 ## Global Constraints
@@ -30,6 +30,7 @@
 - Where this plan says "verify actual CLI behavior", the executor runs the command and adapts to real output rather than trusting the plan's guess — record deviations in the PR body.
 - Claude Code CLI (`claude`) and gitleaks are assumed present on the dev machine; `install.sh` must degrade with a loud warning when either is absent on a target machine.
 - Subagent pressure tests follow superpowers:writing-skills → testing-skills-with-subagents.md. Baseline transcripts (verbatim rationalizations) are saved under `docs/superpowers/plans/testing/` in this repo so GREEN/REFACTOR runs can diff against them.
+- **Delivery-path split:** `claude/AGENTS.md` and `claude/garmin-release.md` ship live on every `git pull`, via the `~/.claude/dcltdw` symlink. `claude/skills/**` ships only through the plugin's version-keyed cache — bump `version` in `claude/.claude-plugin/plugin.json` in the same commit as any skill change, or installed machines keep the stale copy. `claude/githooks/**` (Task 9) is symlink-delivered too (Task 10 wires `core.hooksPath` to `$LINK/githooks`) and does **not** need a version bump.
 
 ---
 
@@ -98,9 +99,14 @@ Expected: no output (marketplace not registered) — this is the RED state.
 {
   "name": "dcltdw",
   "description": "Cross-project PR lifecycle skills for dcltdw's repos",
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "author": { "name": "dcltdw" }
 }
 ```
+`author` is required — without it `claude plugin validate --strict` fails
+both this manifest and the sibling `marketplace.json` on a missing-author
+warning (found during Task 2's PR review; the executed repo already carries
+this field).
 
 - [ ] **Step 4: Register and install; watch the check pass**
 
@@ -139,6 +145,18 @@ git commit -m "feat: plugin + marketplace manifests for dcltdw skills plugin"
 
 - [ ] **Step 1: Append plugin wiring to `install.sh`** (before the final `echo "Done..."` block)
 
+> **Superseded.** Two rounds of live-CLI-driven fixes during Task 2's PR
+> review moved this well past the snippet below: the guard now matches
+> marketplace **name and path** (via `--json` + a small `python3` parse,
+> not a text grep — a name-only match false-positives on this account's own
+> home-dir path, and mishandles moved/duplicate clones), both
+> `marketplace add`/`update` and `plugin install`/`update` are individually
+> guarded so a real failure warns instead of aborting or silently claiming
+> success, warnings go to stderr, and a `plugin update dcltdw@dcltdw` call
+> was added because `plugin install` alone never picks up a `version` bump.
+> Do not re-apply this snippet literally — it would regress all of that.
+> See the actual `install.sh` in the repo for what shipped.
+
 ```bash
 # 3) Register the skills-plugin marketplace and install/update the plugin.
 if command -v claude >/dev/null 2>&1; then
@@ -164,6 +182,14 @@ Verify actual CLI behavior: confirm `marketplace list` output format, whether `i
 Expected: second run succeeds, reports update/already-present, changes nothing else.
 
 - [ ] **Step 3: Update `claude/ADOPTING.md`**
+
+> **Superseded.** The snippet below claims `claude plugin marketplace update`
+> keeps the cached skills plugin current; it does not (verified live —
+> `marketplace update` only refreshes marketplace metadata). See the actual
+> `claude/ADOPTING.md` Install section for the corrected wording: the
+> version-bump rule, the delivery-path split (symlink vs. plugin cache), and
+> restored guidance for moving the clone. Do not re-apply this snippet
+> literally.
 
 In the Install section, replace the sentence "After a `git pull` the symlink already points at the updated files — no re-install needed. Re-run `./install.sh` only if you move the clone." with:
 
@@ -247,6 +273,7 @@ git commit -m "test: baseline pressure scenarios for opening-a-pr (RED)"
 
 **Files:**
 - Create: `claude/skills/opening-a-pr/SKILL.md`
+- Modify: `claude/.claude-plugin/plugin.json` (version bump — see Step 5)
 - Modify: `docs/superpowers/plans/testing/opening-a-pr-baseline.md` (append GREEN/REFACTOR results)
 
 **Interfaces:**
@@ -319,18 +346,26 @@ Any new rationalization in a GREEN transcript → add a row/counter to SKILL.md 
 
 - [ ] **Step 5: Trigger check via live plugin**
 
+**Bump `version` in `claude/.claude-plugin/plugin.json` first** (e.g.
+`0.1.0` → `0.1.1`), in the same change as the new skill. `claude plugin
+update` is a no-op without a version change — skip this and the check below
+tests a *stale* cache, which could report a false GREEN (the plan's entire
+TDD value is that signal).
+
 ```bash
-./install.sh   # refreshes the cached plugin copy with the new skill
-claude plugin marketplace update dcltdw
+./install.sh   # now genuinely refreshes: runs `claude plugin update dcltdw@dcltdw`
+find ~/.claude/plugins/cache/dcltdw -name SKILL.md   # confirm opening-a-pr/SKILL.md landed in the NEW version's cache dir before trusting anything below
 ```
 Then in a fresh `claude` session in the sandbox repo, give the S1-A prompt and confirm the session invokes `dcltdw:opening-a-pr` (visible skill invocation) before drafting. This tests discovery (description-driven), not just compliance.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add claude/skills/opening-a-pr/SKILL.md docs/superpowers/plans/testing/opening-a-pr-baseline.md
+git add claude/skills/opening-a-pr/SKILL.md claude/.claude-plugin/plugin.json docs/superpowers/plans/testing/opening-a-pr-baseline.md
 git commit -m "feat: dcltdw:opening-a-pr skill (TDD: baseline, green, refactor)"
 ```
+Includes the `version` bump from Step 5 — required for this skill to reach
+already-installed machines (Global Constraints).
 
 ---
 
@@ -342,6 +377,10 @@ git commit -m "feat: dcltdw:opening-a-pr skill (TDD: baseline, green, refactor)"
 **Interfaces:**
 - Consumes: skill name `dcltdw:opening-a-pr` (Task 4).
 - Produces: AGENTS.md sections in their final PR-2 shape; Task 8 edits the merge-side sections.
+
+No `version` bump needed for this task — it only touches `claude/AGENTS.md`,
+which ships live via the `~/.claude/dcltdw` symlink on every `git pull`, not
+through the version-gated plugin cache (see Global Constraints).
 
 - [ ] **Step 1: Replace the "Branches and PRs" section**
 
@@ -441,6 +480,7 @@ git commit -m "test: baseline pressure scenarios for cleaning-up-after-pr-merge 
 
 **Files:**
 - Create: `claude/skills/cleaning-up-after-pr-merge/SKILL.md`
+- Modify: `claude/.claude-plugin/plugin.json` (version bump — see Step 5)
 - Modify: `docs/superpowers/plans/testing/cleaning-up-after-pr-merge-baseline.md` (append results)
 
 **Interfaces:**
@@ -506,14 +546,16 @@ base branch and strands, even though GitHub says "Merged".
 
 - [ ] **Step 4: REFACTOR** — counter any new rationalization, rerun, repeat until clean; append results to baseline doc.
 
-- [ ] **Step 5: Live trigger check** — `./install.sh`, fresh session in sandbox, S2-B prompt, confirm `dcltdw:cleaning-up-after-pr-merge` is invoked.
+- [ ] **Step 5: Live trigger check** — **bump `version` in `claude/.claude-plugin/plugin.json` first** (same reasoning as Task 4 Step 5: `plugin update` no-ops without a version change, so skipping this risks a false GREEN), then `./install.sh`, then `find ~/.claude/plugins/cache/dcltdw -name SKILL.md` to confirm `cleaning-up-after-pr-merge/SKILL.md` landed in the new version's cache dir, then a fresh session in sandbox, S2-B prompt, confirm `dcltdw:cleaning-up-after-pr-merge` is invoked.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add claude/skills/cleaning-up-after-pr-merge/SKILL.md docs/superpowers/plans/testing/cleaning-up-after-pr-merge-baseline.md
+git add claude/skills/cleaning-up-after-pr-merge/SKILL.md claude/.claude-plugin/plugin.json docs/superpowers/plans/testing/cleaning-up-after-pr-merge-baseline.md
 git commit -m "feat: dcltdw:cleaning-up-after-pr-merge skill (TDD: baseline, green, refactor)"
 ```
+Includes the `version` bump from Step 5 — required for this skill to reach
+already-installed machines (Global Constraints).
 
 ---
 
@@ -524,6 +566,9 @@ git commit -m "feat: dcltdw:cleaning-up-after-pr-merge skill (TDD: baseline, gre
 
 **Interfaces:**
 - Consumes: skill name `dcltdw:cleaning-up-after-pr-merge` (Task 7).
+
+No `version` bump needed for this task either — same reason as Task 5, it
+only touches `claude/AGENTS.md` (symlink-delivered).
 
 - [ ] **Step 1: Replace the entire "After a PR merges" section with:**
 
@@ -630,6 +675,13 @@ cd ~/Github/dcltdw && git checkout main && git pull && git checkout -b pre-push-
 git add claude/githooks/pre-push
 git commit -m "feat: global pre-push gitleaks hook with repo-hook chaining"
 ```
+No `version` bump needed here. `claude/githooks/**` reaches machines via the
+`~/.claude/dcltdw` symlink, not the plugin cache: Task 10 Step 1 sets
+`core.hooksPath` to `$LINK/githooks`, and `$LINK` is that symlink — so the
+hook is live on every `git pull`, the same delivery as `AGENTS.md`. (An
+earlier draft of this rule, during PR 1 review, assumed skills and hooks
+were both cache-gated; verified against Task 10's actual mechanism and
+narrowed to skills only — see Global Constraints and root `CLAUDE.md`.)
 
 ---
 
