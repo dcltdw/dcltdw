@@ -123,27 +123,11 @@ different remedies; don't let one rule blur them:
   "Won't Do" status if the board lacks one.
 - Say **refinement** or **triage** for backlog work — never "grooming" (outdated).
 
-## After a PR merges
-- `git checkout main && git pull`.
-- **Confirm `main` actually contains the change** — grep for it. "The PR shows
-  merged" is a weaker claim: a squash-merge can land from a state *before* a
-  later fix commit, leaving `main` silently missing it.
-- Move the board card to **Done** (or **Won't Do** + reason).
-- Ask what the merge **made stale** — docs describing the old behaviour, tickets
-  it silently resolved, open PRs needing a rebase, live config that now differs
-  from `main`.
-- Delete the merged branch, local and remote. Note that `git branch --merged`
-  does **not** list a squash-merged branch (it shares no commits with `main`), so
-  rely on the PR's merge state, not that command.
-- **Ask the server which branches exist; `git branch -a` doesn't know.** It lists
-  remote-*tracking* refs, so a branch already deleted on the server keeps
-  appearing locally until something prunes — which reads as a leftover branch
-  needing cleanup when there is nothing there (this happened: a closed PR's
-  branch was reported as dangling, and flagged to the human as work to tidy,
-  weeks after the server had dropped it). `git ls-remote --heads origin` answers
-  authoritatively; `git fetch --prune` clears the stale refs. Check before
-  reporting a branch as leftover, and before deleting one — a branch whose PR
-  was **closed rather than merged** still holds unmerged commits.
+## Merging a PR, and after
+- **Before merging any PR, the moment one merges, or when judging whether a
+  branch is leftover or safe to delete → use the
+  `dcltdw:cleaning-up-after-pr-merge` skill.** (Not installed?
+  `./install.sh` in this repo's clone — see ADOPTING.md.)
 
 ## Commits
 - Stamp each commit with the current AI model in a `Co-Authored-By:` trailer.

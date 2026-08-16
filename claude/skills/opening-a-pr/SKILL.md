@@ -33,16 +33,19 @@ the flag only protects the reader if the reason behind it is checked, not
 assumed.
 
 Check, don't assume: `gh repo view --json deleteBranchOnMerge` tells you
-whether this repo auto-deletes branches on merge. If so, GitHub retargets
-a child PR's base automatically once the parent merges — sounds solved,
-usually isn't: retargeting changes only which branch the PR diffs
-against, never the child's commit history.
+whether this repo auto-deletes branches on merge — the common way, not
+the only way, a parent's branch ends up gone (a human can delete it
+manually too). Either way, once the parent's branch is gone, GitHub
+retargets a child PR's base automatically — sounds solved, usually isn't:
+retargeting changes only which branch the PR diffs against, never the
+child's commit history.
 
 So check ancestry instead of guessing whether that gap matters:
 `git merge-base --is-ancestor <parent-tip> main`. True (a true merge, or
-an already-rebased child) — nothing to do. False (typical after a squash
-merge — a brand-new commit, never an ancestor of the original branch) —
-the child's diff still duplicates the parent's lines and will conflict.
+an already-rebased child) — nothing to do about the history. False (squash and rebase
+merges both rewrite history, so this is the normal case — a brand-new
+commit, never an ancestor of the original branch) — the child's diff
+still duplicates the parent's lines and will conflict.
 
 If false: rebase the child onto current `main` (`git rebase --onto main
 <parent-tip> <child-branch>`), then re-diff against `main` to confirm only

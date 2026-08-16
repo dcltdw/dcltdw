@@ -30,8 +30,8 @@ done by the human, not by Claude.
    move the prior version to history, keep under the 4000-char cap), the store
    README, and any changelog — accurate to the real changes.
 7. **Secret scan** the diff and the built artifacts.
-8. **Board + PR hygiene** per `AGENTS.md` (board moved, PR bodies complete,
-   commits stamped).
+8. **Board + PR hygiene** — board move and PR body via `dcltdw:opening-a-pr` /
+   `dcltdw:cleaning-up-after-pr-merge`, commits stamped per `AGENTS.md`.
 9. **Tag** the release commit `vX.Y.Z`.
 10. **Hand off.** The human uploads to the store. A release is **unconfirmed**
     until the wild says otherwise — for a fix, that's the error dashboard / a

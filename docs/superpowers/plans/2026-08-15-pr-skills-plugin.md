@@ -27,10 +27,10 @@
 - Every commit carries a `Co-Authored-By:` trailer naming the executing model.
 - PR bodies use the five-section format (Files changed with `(new)`/`(deleted)`/`(modified)`, Work breakdown, Test expectations, Operational impact, Provenance) — from PR 2 onward, via the new `dcltdw:opening-a-pr` skill.
 - Iron Law for skills: no SKILL.md is written or edited before its failing baseline run is documented. Wrote it early? Delete it and start over.
-- Skill frontmatter: `name` letters/numbers/hyphens only; `description` third person, starts with "Use when…", trigger-only, < 500 chars; SKILL.md body target < 500 words.
+- Skill frontmatter: `name` letters/numbers/hyphens only; `description` third person, starts with "Use when…", trigger-only, < 500 chars; SKILL.md body target < ~575 words.
 - Where this plan says "verify actual CLI behavior", the executor runs the command and adapts to real output rather than trusting the plan's guess — record deviations in the PR body.
 - Claude Code CLI (`claude`) and gitleaks are assumed present on the dev machine; `install.sh` must degrade with a loud warning when either is absent on a target machine.
-- Subagent pressure tests follow superpowers:writing-skills → testing-skills-with-subagents.md. Baseline transcripts (verbatim rationalizations) are saved under `docs/superpowers/plans/testing/` in this repo so GREEN/REFACTOR runs can diff against them.
+- Subagent pressure tests follow superpowers:writing-skills → testing-skills-with-subagents.md. The two baseline `.md` files (with verbatim-rationalization excerpts quoted inline) are tracked under `docs/superpowers/plans/testing/` in this repo; the raw per-run transcripts themselves are gitignored session scratch, not committed.
 - **Delivery-path split:** `claude/AGENTS.md` and `claude/garmin-release.md` ship live on every `git pull`, via the `~/.claude/dcltdw` symlink. `claude/skills/**` ships only through the plugin's version-keyed cache — bump `version` in `claude/.claude-plugin/plugin.json` in the same commit as any skill change, or installed machines keep the stale copy. `claude/githooks/**` (Task 9) is symlink-delivered too (Task 10 wires `core.hooksPath` to `$LINK/githooks`) and does **not** need a version bump.
 - **Hold-back execution (added 2026-08-16; spec:
   docs/superpowers/specs/2026-08-16-concurrent-agents-and-delivery-paths-design.md):**
@@ -360,7 +360,7 @@ holds the merge gate.
 - [ ] **Step 2: Verify frontmatter constraints**
 
 ```bash
-wc -w claude/skills/opening-a-pr/SKILL.md   # target < ~500 words
+wc -w claude/skills/opening-a-pr/SKILL.md   # target < ~575 words
 ```
 Description: third person, "Use when…", no workflow summary, < 500 chars. Name: hyphens only.
 
@@ -460,7 +460,7 @@ git commit -m "agents: extract PR-open rules into dcltdw:opening-a-pr skill"
 git push -u origin opening-a-pr-skill
 gh pr create --base main --title "Extract opening-a-pr into a skill" --body-file -
 ```
-Use the new skill for the PR body (it's installed now). Base is `main` — say so. **STOP: wait for approval + merge; run the post-merge routine before Task 6.**
+Use the new skill for the PR body (it's installed now). Base is `main` — say so. **STOP: wait for approval + merge.** The post-merge routine's step 1 (`git checkout main && git pull`) is pin-unsafe here: `main` is checked out in the pinned primary clone, so that checkout fails from this worktree, and running it in the primary clone instead would pull the symlinked `AGENTS.md` live machine-wide, pre-cutover — exactly what the pin (Global Constraints) forbids. Substitute, without any checkout: `git fetch origin`, `git log origin/main` to confirm the merge landed, and `git show origin/main:<path>` to grep the actual change out of `origin/main`. Do not pull or check out `main` in the primary clone before Task 11's cutover. Do this before Task 6.
 
 ---
 
@@ -649,7 +649,7 @@ git commit -m "agents: extract merge/cleanup rules into dcltdw:cleaning-up-after
 git push -u origin cleanup-after-merge-skill
 gh pr create --base main --title "Extract PR-merge cleanup into a skill" --body-file -
 ```
-Body via `dcltdw:opening-a-pr`; base `main` — say so. **STOP: approval + merge + post-merge routine (now via the new skill — its first production use) before Task 9.**
+Body via `dcltdw:opening-a-pr`; base `main` — say so. **STOP: approval + merge.** The post-merge routine (now via the new skill — its first production use) opens with `git checkout main && git pull`, which is pin-unsafe here: `main` is checked out in the pinned primary clone, so that checkout fails from this worktree, and running it in the primary clone instead would pull the symlinked `AGENTS.md` live machine-wide, pre-cutover — exactly what the pin (Global Constraints) forbids. Substitute, without any checkout: `git fetch origin`, `git log origin/main` to confirm the merge landed, and `git show origin/main:<path>` to grep the actual change out of `origin/main`. Do not pull or check out `main` in the primary clone before Task 11's cutover. Do this before Task 9.
 
 ---
 
