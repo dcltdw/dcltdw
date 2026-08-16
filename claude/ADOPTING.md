@@ -23,9 +23,9 @@ The script is idempotent and does three things:
 
   (migrating the old `@~/Github/dcltdw/claude/universal.md` import if it finds it);
 - registers this clone as the `dcltdw` plugin marketplace and installs the
-  `dcltdw` skills plugin. That plugin ships no skills yet — this is
-  scaffolding; `dcltdw:opening-a-pr` and `dcltdw:cleaning-up-after-pr-merge`
-  land in later PRs onto this same plugin.
+  `dcltdw` skills plugin — home to this repo's PR-lifecycle skills:
+  `dcltdw:opening-a-pr`, with `dcltdw:cleaning-up-after-pr-merge` rounding
+  out the pair on the same plugin.
 
 **Two delivery paths, and they behave differently — this is the single most
 confusing thing about this setup.** `AGENTS.md` and `garmin-release.md` reach
