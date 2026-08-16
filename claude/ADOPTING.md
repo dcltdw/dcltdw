@@ -54,8 +54,11 @@ the other:
   everything that must be *live on pull*: the always-loaded `AGENTS.md`
   import, per-repo opt-in imports (`garmin-release.md`), and — once the
   pre-push hook lands — `githooks/`, which `core.hooksPath` points into.
-- **The `dcltdw` plugin cache** carries `skills/` only, gated by `version`
-  bumps in `.claude-plugin/plugin.json`.
+- **The `dcltdw` plugin cache** delivers `skills/` — and only `skills/` —
+  gated by `version` bumps in `.claude-plugin/plugin.json`. (The cached
+  copy is actually a full snapshot of `claude/`, so files like
+  `AGENTS.md` ride along in it too; those ride-alongs are inert, since
+  the live `@`-import resolves through the symlink, not the cache.)
 
 Plugin-only delivery is not currently possible (verified against Claude
 Code 2.1.233, 2026-08): plugins cannot contribute always-loaded
