@@ -137,7 +137,11 @@ different remedies; don't let one rule blur them:
   and fiddly to unpick.
 
 ## Before pushing
-- **Scan the diff for secrets** (keys, tokens, credentials) before every push.
+- A global pre-push hook (installed by `./install.sh`; gitleaks) scans outgoing
+  commits for secrets. If the hook warns that gitleaks is missing — or you're on
+  a machine without the hook, or the repo has its own `core.hooksPath` (e.g.
+  husky) so ours never runs — **scan the diff for secrets manually** (keys,
+  tokens, credentials) before every push.
 
 ## Before claiming done
 - **Verify, don't assert.** Run the actual build/test/command and confirm the

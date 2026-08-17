@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Global pre-push hook (activated via `git config --global core.hooksPath`).
+# Scans outgoing commits for secrets with gitleaks, then chains to the
+# repo's own .git/hooks/pre-push.
+#
+# IMPORTANT: we deliberately resolve the repo-local hook via
+# `git rev-parse --git-common-dir` + "hooks/pre-push", NOT via
+# `git rev-parse --git-path hooks/pre-push`. When core.hooksPath is set
+# (exactly the condition under which this script runs in production),
+# --git-path hooks/pre-push resolves INTO core.hooksPath itself — i.e. to
+# this very script — which would recurse forever on every push. Verified
+# live: with core.hooksPath set, `git rev-parse --git-path hooks/pre-push`
+# printed the core.hooksPath directory; `git rev-parse --git-common-dir`
+# ignores core.hooksPath and always points at the real .git dir (and
+# correctly resolves through worktrees to the shared main .git dir).
+#
+# The scan runs before the repo-local hook is chained to, and a blocked or
+# failed scan exits before the repo-local hook ever runs: a flagged/failed
+# secrets scan is the higher-severity outcome, and there's no point running
+# a possibly slow repo-local hook against a push we're about to block
+# anyway. Note this is a behavior change versus having no wrapper at all
+# (previously the repo-local hook always ran regardless) — intentional.
+set -uo pipefail
+
+remote="${1:-}"
+input="$(cat)"
+zero=0000000000000000000000000000000000000000
+leak_found=0
+scan_error=0
+
+if command -v gitleaks >/dev/null 2>&1; then
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "${local_ref:-}" ] && continue
+    [ "$local_sha" = "$zero" ] && continue        # branch deletion: nothing outgoing
+
+    # Pick a commit range that is GUARANTEED to be computable from objects
+    # we actually have locally. `remote_sha` is whatever the remote
+    # advertised during the push negotiation -- git knows this value even
+    # for objects it has never fetched (e.g. someone else pushed and we're
+    # about to force-push over their tip). Blindly trusting it as one side
+    # of a `remote_sha..local_sha` range can hand gitleaks/git-log an
+    # unresolvable range; gitleaks then logs an ERR, reports "0 commits
+    # scanned" / "no leaks found", and exits 0 -- a silent, undetected
+    # non-scan. Verified live (force push over an unfetched remote tip):
+    #   ERR [git] fatal: Invalid revision range <old>..<new>
+    #   INF 0 commits scanned.
+    #   INF no leaks found          <-- exit 0, secret pushed clean
+    # So: only use remote_sha directly when we can prove the object is
+    # present locally.
+    if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      range="$remote_sha..$local_sha"
+    elif git config --get "remote.$remote.url" >/dev/null 2>&1; then
+      # remote_sha is zero (brand-new ref) or not present locally (unfetched
+      # tip) -- exclude what we know this named remote already has, instead
+      # of trusting a possibly-absent sha directly in a range. Only valid
+      # when `$remote` is an actual configured remote name: `git push <url>
+      # ...` passes a raw URL here, and `--remotes=<url>` would silently
+      # match zero remote-tracking refs, degenerating this into a full-repo
+      # scan disguised as a targeted one (verified: 6 commits vs. the 1
+      # actually new on a toy repo) -- guarded by the branch below instead.
+      range="$local_sha --not --remotes=$remote"
+    else
+      # No safe exclusion set available. Scan everything reachable from
+      # $local_sha rather than silently skip -- slower, but never silent.
+      range="$local_sha"
+      echo "pre-push: no known remote-tracking state for '$remote' ($local_ref) — scanning full history of $local_sha (slower, but never silently skipped)." >&2
+    fi
+
+    # Validate the range actually resolves before handing it to gitleaks.
+    # $range is intentionally unquoted below so it word-splits into
+    # separate revision arguments (it may be "sha1..sha2" or
+    # "sha1 --not --remotes=name" or bare "sha1").
+    if ! git rev-list $range -- >/dev/null 2>&1; then
+      echo "pre-push: could not compute a valid commit range to scan for $local_ref ($range); refusing to push unscanned. push blocked." >&2
+      exit 1
+    fi
+
+    # Capture gitleaks' stderr so we can tell a real "leaks found" apart
+    # from gitleaks itself failing (bad config, internal error, etc.) --
+    # both currently exit non-zero and, without this, both produced the
+    # same "flagged potential secrets" message pointing the user at
+    # .gitleaksignore, which does nothing for a config parse error.
+    # --redact keeps the secret value itself out of all output (masked as
+    # "REDACTED"); -v/-l warn/--no-banner surface file/line/commit/rule/
+    # fingerprint (needed to act on a block) without the INF chatter.
+    # </dev/null: defensive -- stops gitleaks from ever being able to
+    # consume the remainder of this loop's stdin (real gitleaks 8.30.1
+    # doesn't read it, but nothing should depend on that staying true).
+    # NO_COLOR=1: gitleaks' level-tagged log lines (INF/WRN/ERR/FTL) are
+    # ANSI-colored by default even when not attached to a TTY, which breaks
+    # a naive `grep FTL` (the color codes end in a letter, e.g. `\e[31m`,
+    # right up against the token, so a "non-letter boundary" regex misses
+    # it -- verified live, the first cut of this fix silently failed to
+    # detect FTL for exactly this reason). NO_COLOR=1 gives plain-text
+    # level tags on stderr, which is all we parse below; it does not affect
+    # the -v finding block on stdout (that's shown to the user as-is).
+    gl_err="$(mktemp "${TMPDIR:-/tmp}/pre-push-gitleaks.XXXXXX" 2>/dev/null)" || gl_err=""
+    if [ -n "$gl_err" ]; then
+      NO_COLOR=1 gitleaks git --redact -v --no-banner -l warn --log-opts="$range" . </dev/null 2>"$gl_err"
+      gl_rc=$?
+      cat "$gl_err" >&2
+    else
+      NO_COLOR=1 gitleaks git --redact -v --no-banner -l warn --log-opts="$range" . </dev/null
+      gl_rc=$?
+    fi
+    if [ "$gl_rc" -ne 0 ]; then
+      if [ -n "$gl_err" ] && grep -qE '(^|[^A-Za-z])(FTL|ERR)([^A-Za-z]|$)' "$gl_err"; then
+        scan_error=1
+      else
+        leak_found=1
+      fi
+    fi
+    [ -n "$gl_err" ] && rm -f "$gl_err"
+  done <<< "$input"
+
+  if [ "$scan_error" -ne 0 ]; then
+    echo "pre-push: gitleaks failed to scan cleanly (config or internal error, see output above) — push blocked. This is NOT a detected secret; fix the underlying gitleaks error and retry." >&2
+    exit 1
+  fi
+  if [ "$leak_found" -ne 0 ]; then
+    echo "pre-push: gitleaks flagged potential secrets in outgoing commits; push blocked." >&2
+    echo "          (false positive? add a gitleaks:allow comment, or a .gitleaksignore entry keyed by the Fingerprint shown above)" >&2
+    echo "          (need to push anyway right now? git push --no-verify skips this scan)" >&2
+    exit 1
+  fi
+else
+  echo "pre-push WARNING: gitleaks not installed — outgoing commits NOT scanned." >&2
+  echo "          brew install gitleaks   (rule: scan the diff for secrets before pushing)" >&2
+fi
+
+# Chain to the repository's own pre-push hook, if any. Resolve it via the
+# real .git dir (--git-common-dir), bypassing core.hooksPath entirely — see
+# the recursion note above. --git-common-dir also does the right thing from
+# a linked worktree (shared hooks live in the main .git dir).
+git_common_dir="$(git rev-parse --git-common-dir 2>/dev/null)" || git_common_dir=""
+if [ -n "$git_common_dir" ]; then
+  repo_hook="$git_common_dir/hooks/pre-push"
+  # Self-invocation guard: never chain into ourselves (e.g. a stray symlink
+  # or a repo-local hooks dir that happens to alias this script). This is a
+  # secondary defense only: without `realpath` on PATH the comparison falls
+  # back to comparing the two path strings unresolved, which is a much
+  # weaker check (it won't catch a symlink alias) -- --git-common-dir
+  # bypassing core.hooksPath entirely is what actually prevents recursion.
+  if [ -x "$repo_hook" ]; then
+    self_real="$(realpath "$0" 2>/dev/null || echo "$0")"
+    hook_real="$(realpath "$repo_hook" 2>/dev/null || echo "$repo_hook")"
+    if [ "$hook_real" != "$self_real" ]; then
+      # command substitution in `input="$(cat)"` above stripped the
+      # trailing newline(s) git originally sent on stdin. Re-adding exactly
+      # one newline (when there's content) reproduces the standard
+      # newline-terminated-records format every `while read` pre-push hook
+      # (including git's own sample) expects -- without it, the chained
+      # hook's own read loop silently drops the last ref record (or, on a
+      # single-ref push, sees nothing at all and never runs its logic).
+      if [ -n "$input" ]; then
+        printf '%s\n' "$input" | "$repo_hook" "$@" || exit $?
+      else
+        "$repo_hook" "$@" </dev/null || exit $?
+      fi
+    fi
+  fi
+fi
+exit 0

@@ -661,19 +661,54 @@ Body via `dcltdw:opening-a-pr`; base `main` — say so. **STOP: approval + merge
 **Interfaces:**
 - Produces: hook script activated by Task 10 via `core.hooksPath ~/.claude/dcltdw/githooks`; chains to repo-local hooks.
 
-- [ ] **Step 1: Write the failing test (scratch repos)**
+- [ ] **Step 1: Confirm the pre-hook baseline (not a meaningful RED by itself)**
 
 ```bash
 S=/private/tmp/claude-501/-Users-dcltdw/e48c24e1-2f84-45c5-b56e-2216bd8b34bd/scratchpad
 mkdir -p "$S/hook-test" && cd "$S/hook-test"
 git init --bare remote.git && git clone remote.git leaky && cd leaky
-echo 'aws_key = "AKIAIOSFODNN7EXAMPLE"' > config.py
+echo 'aws_key = "AKIAJDPUYFI4NYCXKPEA"' > config.py  # gitleaks:allow (fixture, not a live credential)
 git add . && git commit -m "add config"
-git push origin main && echo "PUSH SUCCEEDED (RED: secret not blocked)"
+git push origin main && echo "PUSH SUCCEEDED (no hook yet)"
 ```
-Expected now: push succeeds — the RED state (no hook yet).
+**Fixture note:** do not use `AKIAIOSFODNN7EXAMPLE` (AWS's own docs example
+key) here — gitleaks's *default* ruleset explicitly allowlists it (a
+stopword regex matching `.+EXAMPLE$`), so it never fires, RED or GREEN.
+Use a generic fake AWS-access-key-shaped string instead (confirm it trips
+`gitleaks detect --no-git -v -s .` before relying on it in any test) — the
+key above is one such fixture, not a live credential.
+
+**Why this isn't a real RED test:** with no hook installed at all, *any*
+content pushes successfully — the push succeeding here proves nothing
+about secret-detection specifically, only that no hook is currently
+active. Treat this step as a precondition check, not a red bar. The
+meaningful assertion — this exact commit blocked once the hook exists — is
+Step 3.
 
 - [ ] **Step 2: Write `claude/githooks/pre-push`**
+
+> **Superseded.** The draft below (kept for the recursion-hazard
+> illustration) is not what shipped. Code review found two further
+> critical, silent failure modes beyond the recursion hazard already fixed
+> here: (C1) a force-push over an unfetched remote tip builds an invalid
+> `remote_sha..local_sha` range, and gitleaks then reports "0 commits
+> scanned / no leaks found" and **exits 0** — a secret sails through with
+> the hook fully active and no error anywhere; (C2) `input="$(cat)"` +
+> `printf '%s'` drops the trailing newline, so a chained repo-local hook's
+> own `while read` loop silently loses the last (or, on a single-ref push,
+> the *only*) ref record — once Task 10 sets `core.hooksPath` globally,
+> every repo-local ref-inspecting pre-push hook on the machine would stop
+> enforcing with zero errors. Also fixed in the same pass: gitleaks
+> scan-failure output (bad config, etc.) was indistinguishable from
+> "leaks found" in the user-facing message; a blocked push showed no
+> file/line/commit/fingerprint to act on; `--remotes=$remote` silently
+> degenerated to a full-repo scan when `$remote` was a raw URL rather than
+> a configured remote name. See the actual `claude/githooks/pre-push` in
+> the repo for the shipped script, and
+> `.superpowers/sdd/2026-08-15-pr-skills-plugin/task-9-report.md` for the
+> full repro/fix/regression record. Do not copy the code block below as a
+> reference implementation — only the recursion-hazard framing in its
+> final four lines is discussed further down.
 
 ```bash
 #!/usr/bin/env bash
@@ -709,7 +744,14 @@ else
 fi
 
 # Chain to the repository's own pre-push hook, if any.
-repo_hook="$(git rev-parse --git-path hooks/pre-push)"
+# NOT `git rev-parse --git-path hooks/pre-push`: once core.hooksPath is set
+# (the production condition — Task 10 sets it globally), --git-path
+# hooks/pre-push resolves INTO core.hooksPath itself, i.e. to this very
+# script, causing infinite self-recursion on every push. Verified live.
+# --git-common-dir ignores core.hooksPath and always points at the real
+# .git dir (correctly, through a linked worktree, at the shared main .git
+# dir too).
+repo_hook="$(git rev-parse --git-common-dir)/hooks/pre-push"
 if [ -x "$repo_hook" ]; then
   printf '%s' "$input" | "$repo_hook" "$@" || exit $?
 fi
@@ -726,7 +768,38 @@ git config core.hooksPath ~/Github/dcltdw-exec/claude/githooks   # repo-local fo
 echo more >> config.py && git commit -am "another commit"
 git push origin main && echo "FAIL: should have been blocked" || echo "PASS: blocked"
 ```
-Expected: blocked (the earlier secret commit is in the outgoing range). Then verify a clean repo pushes: new clone, harmless commit, push succeeds. Then verify chaining: add an executable `.git/hooks/pre-push` that writes a marker file; push; marker exists.
+Expected: blocked (the earlier secret commit is in the outgoing range —
+verify this against a *fresh* remote/clone pair, not one the earlier
+fixture commit has already reached: once a secret commit is on the
+remote, a later push's `remote_sha..local_sha` range no longer includes
+it, which isn't a bug but will read as one if reused carelessly). Then
+verify a clean repo pushes: new clone, harmless commit, push succeeds.
+
+Then verify chaining — and make the test capable of catching a stdin
+bug, not just a crash: add an executable `.git/hooks/pre-push` that
+**captures its stdin to a file** (not just a marker):
+```bash
+cat > .git/hooks/pre-push <<'EOF'
+#!/usr/bin/env bash
+cat > /tmp/chain-stdin-capture.txt
+exit 0
+EOF
+chmod +x .git/hooks/pre-push
+```
+Push, then assert the captured file contains the expected ref line(s) —
+not just that it's non-empty. A marker-file-only check cannot tell "the
+chained hook ran and got the right input" apart from "the chained hook ran
+and got truncated or empty stdin" (`input="$(cat)"` command substitution
+strips trailing newlines; naively re-piping it can silently drop the last,
+or only, ref record a chained hook's own `while read` loop would see).
+
+Then add a force-push case, since it's the most likely way this hook
+silently stops working in production: clone A pushes a second commit that
+clone B never fetches; clone B commits a secret on top of the stale base
+and force-pushes. Confirm the hook still scans (falling back to
+`--not --remotes=<name>` rather than trusting the possibly-unfetched
+`remote_sha` directly in a range) and blocks — not "0 commits scanned /
+no leaks found" with a silent success.
 
 - [ ] **Step 4: Commit**
 
@@ -849,13 +922,96 @@ this task on your own initiative.
 - [ ] **Step 1b:** `git checkout main && git pull` — the pin ends here.
   Confirm `git log` contains all four PRs.
 - [ ] **Step 2:** `brew install gitleaks` (if not present).
+- [ ] **Step 2b (inventory before flipping the switch):** Before running
+  `./install.sh`, survey what setting `core.hooksPath` globally will
+  silently affect on this machine, and show the user this list before they
+  consent to Step 3:
+  - Repos with repo-local hooks other than `pre-push` in `.git/hooks/*`
+    (e.g. `find ~/Github -maxdepth 4 -path '*/.git/hooks/*' ! -name '*.sample'
+    ! -name pre-push 2>/dev/null`, adjusted to this machine's actual repo
+    root(s)) — these will stop firing once `core.hooksPath` is set globally.
+    **Recorded baseline (dated 2026-08-16):** a machine-wide audit found no
+    active repo-local hooks anywhere under `~/Github` — every hook file
+    present was a stock `.sample`, which git never executes. Command used:
+    ```
+    find ~/Github -maxdepth 4 -path '*/.git/hooks/*' -type f -perm -u+x \
+      ! -name '*.sample'
+    ```
+    returned nothing. Consequence: arming `core.hooksPath` globally — which
+    stops git running every repo-local hook type except `pre-push` — has
+    **zero practical cost as of this date**; nothing breaks at cutover. The
+    warning above still stands going forward, though: the trap fires the
+    moment any repo adopts husky, the `pre-commit` framework, or git-lfs's
+    non-push hooks, and it fails silently. This baseline exists so a future
+    cutover, audit, or the planned repo migration can re-run the command
+    above and tell whether it's still true, instead of re-deriving it from
+    scratch.
+  - Repos with their own repo-local `core.hooksPath` (e.g. husky-style
+    `.husky/_`) — these will not be scanned by our hook and get no warning
+    either (repo-local config wins over global). Use `--local --get`,
+    which is what "repo-local" actually means here: bare `--get` returns
+    the *effective* merged value, which — once Step 3 below runs — is the
+    global value in every ordinary repo, masking exactly the case this is
+    checking for. `find`'s naive `-exec git -C {}/.. …` form breaks on
+    linked worktrees (their `.git` is a *file*, not a directory — `cd
+    .../.git/..` fails) and prints only the config value with no repo name
+    attached, so a relative value like `.husky/_` is unattributable. Use
+    instead:
+    ```
+    find ~/Github -maxdepth 2 -name .git -exec sh -c \
+      'git -C "$(dirname "$1")" config --local --get core.hooksPath && \
+       echo "  ^ $(dirname "$1")"' _ {} \;
+    ```
+    **Known in advance, so the operator isn't rediscovering it live:**
+    `~/Github/annotated-maps-sp` already has its own repo-local
+    `core.hooksPath` (confirmed via `--local`, not inherited from global).
+    Expect it in this list. Investigated 2026-08-16: the value is
+    `/Users/dcltdw/Github/annotated-maps-sp/.git/hooks` — git's default
+    hooks location anyway — and the directory holds only the fifteen stock
+    `.sample` files, which git never executes; the setting is a no-op that
+    changes nothing about which hooks currently run. But because it's set
+    *locally*, it takes precedence over the global one once Step 3 runs,
+    making this repo the single place on this machine where pushes would
+    go **silently unscanned** after cutover. See Step 2c for the remedy —
+    unsetting it is a strict improvement, not a workaround.
+  Record both lists in the cutover report even if empty.
+- [ ] **Step 2c (remedy: `annotated-maps-sp`'s redundant `core.hooksPath`,
+  before arming):** Run:
+  ```bash
+  git -C ~/Github/annotated-maps-sp config --local --unset core.hooksPath
+  ```
+  This is a strict improvement and loses nothing: the repo's hook behavior
+  is unchanged (the local value already pointed at git's own default
+  location, which has never held anything but inert `.sample` files), and
+  the repo gains secret scanning from the global hook once Step 3 runs. It
+  is a config change to a repo outside this initiative, so confirm with
+  the user before running it rather than assuming consent.
+  Verify immediately: `git -C ~/Github/annotated-maps-sp config --local
+  --get core.hooksPath` returns nothing. The second half of the
+  confirmation — that non-local resolution now reaches the new global
+  value — can't be checked until Step 3 sets `core.hooksPath` globally;
+  once Step 4 has verified that global value, `git -C
+  ~/Github/annotated-maps-sp config --get core.hooksPath` (no `--local`)
+  will return it too, confirming this repo is now covered like any other.
 - [ ] **Step 3:** `./install.sh` from the primary clone — installs the
   0.2.0 plugin (per the user's final-version decision), sets
-  `core.hooksPath`, refreshes the symlink. Capture full output.
+  `core.hooksPath`, refreshes the symlink. Capture full output, including
+  the new install-time warning about `core.hooksPath` disabling other
+  repo-local hook types machine-wide (expect it in the success branch).
+  **Rollback, if this cutover needs to be undone:** `git config --global
+  --unset core.hooksPath` restores git to consulting each repo's own
+  `.git/hooks/`, undoing this step (the symlink and plugin install from
+  the same run are unaffected and don't need separate rollback).
 - [ ] **Step 4:** Verify machine state: `git config --global --get
-  core.hooksPath` → `~/.claude/dcltdw/githooks`; plugin listed at 0.2.0;
-  `ls ~/.claude/plugins/cache/dcltdw/dcltdw/` shows the 0.2.0 dir
-  containing both skills.
+  core.hooksPath` → the **expanded absolute path**
+  `$HOME/.claude/dcltdw/githooks` (install.sh writes the resolved path via
+  `$LINK/githooks` where `$LINK="$CLAUDE_HOME/dcltdw"` — NOT the literal
+  tilde form `~/.claude/dcltdw/githooks`; compare against the expanded
+  value, e.g. `[ "$(git config --global --get core.hooksPath)" =
+  "$HOME/.claude/dcltdw/githooks" ]`, or resolve both sides before
+  comparing); plugin listed at 0.2.0; `ls
+  ~/.claude/plugins/cache/dcltdw/dcltdw/` shows the 0.2.0 dir containing
+  both skills.
 - [ ] **Step 5:** Run the deferred trigger checks collected from Tasks 4,
   5, 7, and 8 (fresh sessions; confirm each skill auto-invokes and each
   AGENTS.md pointer is live). Recovered verbatim from the pre-deferral plan
@@ -879,7 +1035,29 @@ this task on your own initiative.
     the old prose.
 - [ ] **Step 6:** Run one real pre-push hook check: in a scratch repo with
   a fake-secret commit, confirm the push is blocked by the *global* hook
-  (no repo-local hooksPath override this time).
+  (no repo-local hooksPath override this time). Also confirm the two
+  accepted-degradation paths, neither of which has been verified live
+  before this task:
+  - **Missing gitleaks warns and passes:** temporarily shadow `gitleaks`
+    off `PATH` with `PATH=/usr/bin:/bin git push ...` (verified: still
+    includes `bash`, so the hook's `#!/usr/bin/env bash` shebang still
+    resolves, and the push prints the "gitleaks not installed" warning and
+    still succeeds, exit 0). **Do not** use `PATH=$(dirname "$(command -v
+    git)")` alone — verified this also strips `bash` off `PATH`, so the
+    hook fails to launch at all (`env: bash: No such file or directory`)
+    and the push fails outright — the opposite of the warn-and-pass
+    behavior this check exists to confirm.
+  - **A scan error fails closed:** force gitleaks into an error state via
+    a broken/unreadable `.gitleaks.toml` config (verified: produces `FTL
+    unable to load gitleaks config` and the hook's distinct scan-error
+    message) — or `GITLEAKS_CONFIG=<garbage-path>` as a second option —
+    and push; confirm the hook prints the "gitleaks failed to scan
+    cleanly ... push blocked" message and exits non-zero. **Do not** try
+    to trigger this via an invalid `--log-opts` range: the hook builds
+    that range itself and pre-validates it with `git rev-list` before
+    ever invoking gitleaks, so a bad range trips the hook's own "could not
+    compute a valid commit range" guard instead — a different message
+    than this step expects.
 - [ ] **Step 7:** Tell the user cutover is complete; they resume the
   paused agents. Running sessions pick up new rules at their next
   clear/compaction; pushes go through the hook immediately.

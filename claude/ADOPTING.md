@@ -11,7 +11,7 @@ From a clone of this repo:
 
     ./install.sh
 
-The script is idempotent and does three things:
+The script is idempotent and does four things:
 
 - symlinks this `claude/` directory to the stable path `~/.claude/dcltdw`, so
   imports don't depend on *where* you cloned the repo — re-run `./install.sh`
@@ -24,7 +24,48 @@ The script is idempotent and does three things:
   (migrating the old `@~/Github/dcltdw/claude/universal.md` import if it finds it);
 - registers this clone as the `dcltdw` plugin marketplace and installs the
   `dcltdw` skills plugin — home to this repo's PR-lifecycle skills,
-  `dcltdw:opening-a-pr` and `dcltdw:cleaning-up-after-pr-merge`.
+  `dcltdw:opening-a-pr` and `dcltdw:cleaning-up-after-pr-merge`;
+- `install.sh` also points `core.hooksPath` at a global pre-push hook that
+  runs gitleaks (`brew install gitleaks`) over outgoing commits; it refuses
+  to override a pre-existing custom `core.hooksPath` and warns instead. A
+  push from a GUI git client or IDE may run with a reduced `PATH` that
+  doesn't include `gitleaks`, in which case the hook warns — but GUI clients
+  generally don't surface hook stderr, so in that exact scenario the warning
+  itself is invisible and the push goes through unscanned with nothing shown.
+
+**Setting `core.hooksPath` globally is a real trade-off — read this before
+running `install.sh`:**
+
+- **It silently disables every other repo-local hook type, in every repo on
+  this machine, not just this one.** Git only consults one `hooksPath` at a
+  time. Once it's set globally, a repo's own `.git/hooks/pre-commit`,
+  `commit-msg`, `post-checkout`, `post-merge`, `post-commit`, etc. **stop
+  running, with no error from git.** Only `pre-push` still works, because
+  `claude/githooks/pre-push` explicitly chains to the repo-local
+  `hooks/pre-push` after scanning — no other hook type is chained. This
+  breaks `pre-commit`-framework repos, commit-msg linters, and any non-push
+  git-lfs hook. Nothing else warns you this happened; it just quietly stops.
+- **A repo with its own `core.hooksPath` (repo-local `git config
+  core.hooksPath ...`, e.g. husky-style `.husky/_`) gets no scan and no
+  warning at all.** Repo-local config wins over global, so our `pre-push`
+  hook never runs there — not even to print the "gitleaks missing" warning.
+  These are exactly the repos most likely to have hook tooling already, so
+  don't assume "no warning" means "scanned"; check `git config --local
+  --get core.hooksPath` if you're unsure — bare `--get` (no `--local`)
+  returns the *effective* merged value, which shows the global value in
+  every ordinary repo and would mask exactly this case.
+- **A `core.hooksPath` pointing at a directory that no longer exists
+  disables all hooks, silently.** If `~/.claude/dcltdw/githooks` is missing
+  or stale (e.g. a primary clone checked out to a commit before
+  `claude/githooks/` existed), git runs no hooks at all for that repo and
+  prints nothing. Verify the path resolves (`ls
+  "$(git config --global --get core.hooksPath)"`) if pushes seem
+  unexpectedly unscanned.
+
+**To revert:** `git config --global --unset core.hooksPath` undoes this —
+git goes back to consulting each repo's own `.git/hooks/`. No other
+rollback is needed; the `~/.claude/dcltdw` symlink and the skills-plugin
+install from the same `install.sh` run are unaffected.
 
 **Two delivery paths, and they behave differently — this is the single most
 confusing thing about this setup.** `AGENTS.md` and `garmin-release.md` reach
@@ -51,8 +92,8 @@ the other:
 
 - **The `~/.claude/dcltdw` symlink** (created by `install.sh`) carries
   everything that must be *live on pull*: the always-loaded `AGENTS.md`
-  import, per-repo opt-in imports (`garmin-release.md`), and — once the
-  pre-push hook lands — `githooks/`, which `core.hooksPath` points into.
+  import, per-repo opt-in imports (`garmin-release.md`), and `githooks/`,
+  which `core.hooksPath` points into.
 - **The `dcltdw` plugin cache** delivers `skills/` — and only `skills/` —
   gated by `version` bumps in `.claude-plugin/plugin.json`. (The cached
   copy is actually a full snapshot of `claude/`, so files like

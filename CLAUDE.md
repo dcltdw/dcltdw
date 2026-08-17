@@ -15,9 +15,9 @@ paths behave differently:
 
 **Rule: any change to `claude/skills/**` must bump `version` in
 `claude/.claude-plugin/plugin.json` in the same commit/PR, or installed
-machines keep the stale copy.** `claude/githooks/**` (once it exists) is
-symlink-delivered too — `core.hooksPath` points at `$LINK/githooks`, see the
-plan's Task 10 — so it does *not* need a version bump.
+machines keep the stale copy.** `claude/githooks/**` is symlink-delivered
+too — `core.hooksPath` points at `$LINK/githooks` — so it does *not* need a
+version bump.
 
 Full adopter-facing version of this: `claude/ADOPTING.md`.
 Current implementation plan: `docs/superpowers/plans/2026-08-15-pr-skills-plugin.md`.

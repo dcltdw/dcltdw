@@ -84,6 +84,27 @@ else
   echo "         (a VSCode-only install does not add it), then re-run ./install.sh" >&2
 fi
 
+# 4) Global pre-push secrets scan (gitleaks) via core.hooksPath.
+existing="$(git config --global --get core.hooksPath || true)"
+if [ -z "$existing" ] || [ "$existing" = "$LINK/githooks" ]; then
+  if git config --global core.hooksPath "$LINK/githooks"; then
+    echo "global core.hooksPath -> $LINK/githooks (pre-push secrets scan)"
+    echo "WARNING: this arms core.hooksPath machine-wide, which makes git stop" >&2
+    echo "         running any repo-local hook type OTHER than pre-push — in" >&2
+    echo "         EVERY repo on this machine, not just this one. pre-commit," >&2
+    echo "         commit-msg, post-checkout, post-merge, post-commit, etc. in" >&2
+    echo "         repo-local .git/hooks/ will silently stop firing (common" >&2
+    echo "         casualties: the pre-commit framework, commit-msg linters)." >&2
+    echo "         See claude/ADOPTING.md for details." >&2
+  else
+    echo "WARNING: failed to set global core.hooksPath — pre-push secrets scan NOT installed." >&2
+  fi
+else
+  echo "WARNING: core.hooksPath already set to '$existing' — NOT overriding."
+  echo "         To get the secrets scan, chain $LINK/githooks/pre-push from your hooks."
+fi
+command -v gitleaks >/dev/null 2>&1 || echo "NOTE: gitleaks not installed (brew install gitleaks) — the hook will warn, not scan."
+
 echo
 echo "Done. Start a new Claude session (or /clear) to pick up the rules."
 echo "Garmin repos: add '@~/.claude/dcltdw/garmin-release.md' to that repo's CLAUDE.md (see claude/ADOPTING.md)."
