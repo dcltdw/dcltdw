@@ -12,6 +12,9 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 
 **Fun stuff I'm developing/maintaining**
 
+- **[agents](https://github.com/dcltdw/agents)** — the AGENTS.md rules,
+  Claude Code skills plugin, and install tooling my AI coding agents work
+  under across these repos.
 - **[bunnyforge](https://github.com/dcltdw/bunnyforge)** — a command-line tool
   ([on PyPI](https://pypi.org/project/bunnyforge/)) that manages a tabletop-RPG
   campaign as a version-controlled Markdown workspace: structural validation, a
