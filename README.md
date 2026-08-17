@@ -9,12 +9,12 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 ## What I'm working on
 
 - **[annotated-maps-sp](https://github.com/dcltdw/annotated-maps-sp)** — a multi-tenant map-annotation app where every note is composed of sections that reveal different content to different audiences (public, friends, reputation-gated, private), built on Django + Django-Ninja + PostGIS and React + TypeScript + MapLibre with a [live Boston demo](https://annotated-maps-web.onrender.com/).
-
-**Fun stuff I'm developing/maintaining**
-
 - **[agents](https://github.com/dcltdw/agents)** — the AGENTS.md rules,
   Claude Code skills plugin, and install tooling my AI coding agents work
   under across these repos.
+  
+**Fun stuff I'm developing/maintaining**
+
 - **[bunnyforge](https://github.com/dcltdw/bunnyforge)** — a command-line tool
   ([on PyPI](https://pypi.org/project/bunnyforge/)) that manages a tabletop-RPG
   campaign as a version-controlled Markdown workspace: structural validation, a
