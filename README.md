@@ -33,6 +33,12 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
   MBTA Red and Green lines: realtime arrivals, feed-health monitoring, auth, and a
   Streamlit UI. Python, uv, mypy --strict, ruff, GitHub Actions CI.
 
+## Lines of code
+
+<!-- loc-report:begin -->
+_Populated weekly by the loc-report workflow._
+<!-- loc-report:end -->
+
 ## Links
 
 - 📄 [LinkedIn](https://www.linkedin.com/in/david-leung-5300b51/)
