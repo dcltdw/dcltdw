@@ -11,6 +11,9 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Check out profile repo
         uses: actions/checkout@v4
