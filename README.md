@@ -36,7 +36,17 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 ## Lines of code
 
 <!-- loc-report:begin -->
-_Populated weekly by the loc-report workflow._
+| Repo | Code | Tests | Specs | Config | Docs | Total |
+|:---|---:|---:|---:|---:|---:|---:|
+| annotated-maps-sp | 6,629 | 6,695 | 17,189 | 2,492 | 3,776 | 36,781 |
+| Flightdeck | 1,452 | 0 | 2,701 | 377 | 539 | 5,069 |
+| Understated | 913 | 0 | 0 | 590 | 351 | 1,854 |
+| bunnyforge | 7,610 | 13,058 | 14,748 | 904 | 3,052 | 39,372 |
+| agents | 322 | 0 | 2,226 | 0 | 2,729 | 5,277 |
+| gtfs-demo | 2,724 | 2,350 | 0 | 367 | 2,108 | 7,549 |
+| **TOTAL** | **19,650** | **22,103** | **36,864** | **4,730** | **12,555** | **95,902** |
+
+*Updated 2026-08-19*
 <!-- loc-report:end -->
 
 ## Links
