@@ -23,13 +23,13 @@ jobs:
       REPOS: "annotated-maps-sp Flightdeck Understated bunnyforge agents gtfs-demo"
     steps:
       - name: Check out profile repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Fine-grained PAT, resource owner dcltdw, repository access limited to
       # dcltdw/scripts only, permissions Contents = Read-only. Renewal is an
       # annual chore; this step failing is the renewal signal.
       - name: Check out scripts repo (private, read-only PAT)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: dcltdw/scripts
           token: ${{ secrets.SCRIPTS_READ_TOKEN }}
