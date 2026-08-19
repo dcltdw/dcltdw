@@ -8,35 +8,48 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: loc-report
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
+    env:
+      REPOS: "annotated-maps-sp Flightdeck Understated bunnyforge agents gtfs-demo"
     steps:
       - name: Check out profile repo
         uses: actions/checkout@v4
 
+      # Fine-grained PAT, resource owner dcltdw, repository access limited to
+      # dcltdw/scripts only, permissions Contents = Read-only. Renewal is an
+      # annual chore; this step failing is the renewal signal.
       - name: Check out scripts repo (private, read-only PAT)
         uses: actions/checkout@v4
         with:
           repository: dcltdw/scripts
           token: ${{ secrets.SCRIPTS_READ_TOKEN }}
           path: scripts-repo
+          persist-credentials: false
 
       - name: Shallow-clone the public repos
         run: |
           mkdir -p /tmp/repos
-          for r in annotated-maps-sp Flightdeck Understated bunnyforge agents gtfs-demo; do
+          for r in $REPOS; do
             git clone --depth=1 "https://github.com/dcltdw/$r.git" "/tmp/repos/$r"
           done
 
+      - name: Test the splice script
+        run: python3 .github/scripts/test_update_loc_report.py
+
       - name: Refresh the README block
         run: |
-          python3 scripts-repo/loc_report.py --md \
-            /tmp/repos/annotated-maps-sp /tmp/repos/Flightdeck /tmp/repos/Understated \
-            /tmp/repos/bunnyforge /tmp/repos/agents /tmp/repos/gtfs-demo \
+          paths=(); for r in $REPOS; do paths+=("/tmp/repos/$r"); done
+          python3 scripts-repo/loc_report.py --md "${paths[@]}" \
             | python3 .github/scripts/update_loc_report.py
 
       - name: Commit and push

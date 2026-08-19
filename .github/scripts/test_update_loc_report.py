@@ -1,5 +1,6 @@
 import datetime
 import os
+import pathlib
 import sys
 import unittest
 
@@ -57,6 +58,19 @@ class SpliceTest(unittest.TestCase):
         ).replace("<!-- TMP -->", "<!-- loc-report:end -->")
         with self.assertRaises(ValueError):
             update_loc_report.splice(reversed_readme, "| a |", TODAY)
+
+    def test_empty_table_raises(self):
+        with self.assertRaises(ValueError):
+            update_loc_report.splice(README, "   \n  \n", TODAY)
+
+
+class RealReadmeTest(unittest.TestCase):
+    def test_real_readme_has_one_well_formed_marker_pair(self):
+        readme_path = pathlib.Path(__file__).resolve().parents[2] / "README.md"
+        readme_text = readme_path.read_text(encoding="utf-8")
+        result = update_loc_report.splice(readme_text, "| a |\n| 1 |\n", TODAY)
+        self.assertEqual(result.count(update_loc_report.BEGIN), 1)
+        self.assertEqual(result.count(update_loc_report.END), 1)
 
 
 if __name__ == "__main__":
