@@ -38,15 +38,15 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 <!-- loc-report:begin -->
 | Repo | Code | Tests | Specs | Config | Docs | Total |
 |:---|---:|---:|---:|---:|---:|---:|
-| annotated-maps-sp | 6,629 | 6,695 | 17,189 | 2,492 | 3,755 | 36,760 |
-| Flightdeck | 1,452 | 0 | 2,701 | 377 | 539 | 5,069 |
+| annotated-maps-sp | 6,629 | 6,695 | 17,189 | 2,492 | 4,138 | 37,143 |
+| Flightdeck | 1,690 | 0 | 3,821 | 635 | 571 | 6,717 |
 | Understated | 913 | 0 | 0 | 590 | 351 | 1,854 |
 | bunnyforge | 7,736 | 13,311 | 15,982 | 904 | 3,311 | 41,244 |
-| agents | 322 | 0 | 2,979 | 0 | 2,803 | 6,104 |
+| agents | 322 | 0 | 2,979 | 0 | 2,812 | 6,113 |
 | gtfs-demo | 2,724 | 2,350 | 0 | 367 | 2,108 | 7,549 |
-| **TOTAL** | **19,776** | **22,356** | **38,851** | **4,730** | **12,867** | **98,580** |
+| **TOTAL** | **20,014** | **22,356** | **39,971** | **4,988** | **13,291** | **100,620** |
 
-*Updated 2026-08-24*
+*Updated 2026-08-31*
 <!-- loc-report:end -->
 
 ## Links
