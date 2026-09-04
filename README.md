@@ -12,6 +12,7 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 - **[agents](https://github.com/dcltdw/agents)** — the AGENTS.md rules,
   Claude Code skills plugin, and install tooling my AI coding agents work
   under across these repos.
+- **[kotlin-ramp-up](https://github.com/dcltdw/kotlin-ramp-up)** - a quick exploration of Kotlin using IntelliJ.
   
 **Fun stuff I'm developing/maintaining**
 
@@ -22,6 +23,7 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
   the published site, and one-way publishing to a DokuWiki. Designed to be
   co-maintained by an AI agent working under a generated contract file.
   Python ≥ 3.11, zero runtime dependencies.
+- **[bunnyarchives](https://github.com/dcltdw/bunnyarchives)** - an opinionated way to gather/hold/store information used by players and staff of a parlor larp.
 - **[Understated](https://github.com/dcltdw/Understated)** — Minimal watch face for
   Garmin devices (Connect IQ / Monkey C).
 - **[Flightdeck](https://github.com/dcltdw/Flightdeck)** — Customizable run-data
