@@ -41,13 +41,13 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 | Repo | Code | Tests | Specs | Config | Docs | Total |
 |:---|---:|---:|---:|---:|---:|---:|
 | annotated-maps-sp | 6,629 | 6,695 | 17,189 | 2,492 | 4,138 | 37,143 |
-| Flightdeck | 1,701 | 0 | 3,821 | 635 | 590 | 6,747 |
-| Understated | 913 | 0 | 0 | 590 | 351 | 1,854 |
-| bunnyforge | 7,736 | 13,311 | 15,982 | 904 | 3,311 | 41,244 |
 | agents | 322 | 0 | 2,979 | 0 | 2,812 | 6,113 |
-| gtfs-demo | 2,724 | 2,350 | 0 | 367 | 2,108 | 7,549 |
-| bunnyarchives | 0 | 0 | 0 | 0 | 4,603 | 4,603 |
 | kotlin-ramp-up | 0 | 0 | 0 | 0 | 24 | 24 |
+| bunnyforge | 7,736 | 13,311 | 15,982 | 904 | 3,311 | 41,244 |
+| bunnyarchives | 0 | 0 | 0 | 0 | 4,603 | 4,603 |
+| Understated | 913 | 0 | 0 | 590 | 351 | 1,854 |
+| Flightdeck | 1,701 | 0 | 3,821 | 635 | 590 | 6,747 |
+| gtfs-demo | 2,724 | 2,350 | 0 | 367 | 2,108 | 7,549 |
 | **TOTAL** | **20,025** | **22,356** | **39,971** | **4,988** | **17,937** | **105,277** |
 
 *Updated 2026-09-04*
