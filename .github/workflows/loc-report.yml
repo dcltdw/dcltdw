@@ -20,7 +20,7 @@ jobs:
       run:
         shell: bash
     env:
-      REPOS: "annotated-maps-sp Flightdeck Understated bunnyforge agents gtfs-demo"
+      REPOS: "annotated-maps-sp Flightdeck Understated bunnyforge agents gtfs-demo bunnyarchives kotlin-ramp-up"
     steps:
       - name: Check out profile repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
