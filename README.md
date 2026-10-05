@@ -40,7 +40,7 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 <!-- loc-report:begin -->
 | Repo | Code | Tests | Specs | Config | Docs | Total |
 |:---|---:|---:|---:|---:|---:|---:|
-| annotated-maps-sp | 6,629 | 6,695 | 17,189 | 2,492 | 4,138 | 37,143 |
+| annotated-maps-sp | 6,629 | 6,695 | 17,189 | 2,492 | 4,140 | 37,145 |
 | agents | 322 | 0 | 2,979 | 0 | 2,812 | 6,113 |
 | kotlin-ramp-up | 597 | 0 | 0 | 1,396 | 733 | 2,726 |
 | bunnyforge | 7,858 | 13,790 | 16,536 | 904 | 3,577 | 42,665 |
@@ -48,9 +48,9 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 | Understated | 913 | 0 | 0 | 590 | 351 | 1,854 |
 | Flightdeck | 1,701 | 0 | 3,821 | 635 | 590 | 6,747 |
 | gtfs-demo | 2,724 | 2,350 | 0 | 367 | 2,108 | 7,549 |
-| **TOTAL** | **20,744** | **22,835** | **40,525** | **6,384** | **14,873** | **105,361** |
+| **TOTAL** | **20,744** | **22,835** | **40,525** | **6,384** | **14,875** | **105,363** |
 
-*Updated 2026-09-28*
+*Updated 2026-10-05*
 <!-- loc-report:end -->
 
 ## Links
