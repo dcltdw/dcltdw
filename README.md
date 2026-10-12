@@ -50,7 +50,7 @@ Primary languages are Python and Java; comfortable in TypeScript and SQL.
 | gtfs-demo | 2,724 | 2,350 | 0 | 367 | 2,108 | 7,549 |
 | **TOTAL** | **20,744** | **22,835** | **40,525** | **6,384** | **14,875** | **105,363** |
 
-*Updated 2026-10-05*
+*Updated 2026-10-12*
 <!-- loc-report:end -->
 
 ## Links
